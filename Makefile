@@ -1,3 +1,5 @@
+RES_PATH=\"$(shell pwd)/res\"
+
 all: glad decals
 
 glad:
@@ -5,7 +7,7 @@ glad:
 	ar rcs build/libglad.a build/glad.o
 
 decals: src/decals.c build/libglad.a
-	cc src/decals.c -g -o build/decals -lglfw -Lbuild -lglad -Ithirdparty/glad/include
+	cc -DRES_HOME=$(RES_PATH) src/decals.c -g -o build/decals -lglfw -Lbuild -lglad -Ithirdparty/glad/include 
 
 clean:
 	rm -rm build 
