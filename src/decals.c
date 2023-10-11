@@ -1,22 +1,37 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
+#include "myutils.h"
+#include "objloader.h"
 
 struct File {
 	char *contents;
 	uint64_t size;
 };
 
+struct MeshProxy {
+	uint32_t vao;
+	uint32_t vbo;
+	uint32_t ebo;
+	uint32_t numIndices;
+};
+
+struct ModelProxy {
+	struct MeshProxy *meshes;
+	uint32_t numMeshes;
+};
+
 struct File LoadShader(const char *shaderName);
-int LinkProgram(const uint32_t vs, const uint32_t fs,
+int LinkProgram(const uint32_t vs, const uint32_t fs, uint32_t *pHandle);
+int CompileShader(const struct File *shader, int shaderType, 
 		uint32_t *pHandle);
-int CompileShader(const struct File *shader, int shaderType,
-		uint32_t *pHandle);
-void OnFramebufferResize(GLFWwindow *window, int width,
-		int height);
+void OnFramebufferResize(GLFWwindow *window, int width, int height);
+
+
+struct Model *LoadModel(const char *filename);
 
 int main(void)
 {
@@ -42,6 +57,16 @@ int main(void)
 	    return -1;
 
     glfwSetFramebufferSizeCallback(window, OnFramebufferResize); 
+
+    struct Model *model = LoadModel("assets/room.obj");
+    if (model) {
+	    for (uint32_t i = 0; i < model->NumMeshes; ++i) {
+		    const struct Mesh *mesh = model->Meshes + i;
+		    UtilsDebugPrint("Mesh %s, faces: %u, normals: %u, positions: %u, texCoords: %u\n", mesh->Name, mesh->NumFaces,
+				    mesh->NumNormals, mesh->NumPositions,
+				    mesh->NumTexCoords);
+	    }
+    }
 
     struct vec3 {
 	    float x;
@@ -92,18 +117,18 @@ int main(void)
     uint32_t vsHandle = 0;
     if (!CompileShader(&vsShaderSource, GL_VERTEX_SHADER,
 			    &vsHandle)) {
-	    printf("ERROR: Failed to compile vertex shader\n");
+	    UtilsFatalError("ERROR: Failed to compile vertex shader\n");
 	    return -1;
     }
     uint32_t fsHandle = 0;
     if (!CompileShader(&fsShaderSource, GL_FRAGMENT_SHADER,
 			    &fsHandle)) {
-	    printf("ERROR: Failed to compile fragment shader\n");
+	    UtilsFatalError("ERROR: Failed to compile fragment shader\n");
 	    return -1;
     }
     uint32_t programHandle = 0;
     if (!LinkProgram(vsHandle, fsHandle, &programHandle)) {
-	    printf("ERROR: Failed to link program\n");
+	    UtilsFatalError("ERROR: Failed to link program\n");
 	    return -1;
     }
 
@@ -142,7 +167,7 @@ struct File LoadShader(const char *shaderName)
 	const uint32_t len = strlen(shaderName) + strlen(RES_HOME) + 2;
 	char *absPath = malloc(len);
 	snprintf(absPath, len, "%s/%s", RES_HOME, shaderName);
-	printf("Loading %s\n", absPath);
+	UtilsDebugPrint("Loading %s\n", absPath);
 	FILE *f = fopen(absPath, "rb");
 	if (!f) {
 		free(absPath);
@@ -157,7 +182,7 @@ struct File LoadShader(const char *shaderName)
 	const uint64_t numRead = fread(out.contents,
 			sizeof (char), out.size, f);
 
-	printf("Read %lu bytes. Expected %lu bytes\n",
+	UtilsDebugPrint("Read %lu bytes. Expected %lu bytes\n",
 			numRead, out.size);
 	fclose(f);
 	free(absPath);
@@ -198,4 +223,11 @@ void OnFramebufferResize(GLFWwindow *window, int width,
 		int height)
 {
 	glViewport(0, 0, width, height);
+}
+
+struct Model *LoadModel(const char *filename)
+{
+	const char *absPath = UtilsFormatStr("%s/%s", RES_HOME, filename);
+	struct Model* model = OLLoad(absPath);
+	return model;
 }
