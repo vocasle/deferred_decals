@@ -6,6 +6,7 @@
 
 #include "myutils.h"
 #include "objloader.h"
+#include "mymath.h"
 
 struct File {
 	char *contents;
@@ -32,6 +33,15 @@ void OnFramebufferResize(GLFWwindow *window, int width, int height);
 
 
 struct Model *LoadModel(const char *filename);
+struct ModelProxy *CreateModelProxy(const struct Model *m);
+
+struct PerCamera {
+	Mat4X4 viewProj;
+};
+
+struct PerObject {
+	Mat4X4 world;
+};
 
 int main(void)
 {
@@ -95,22 +105,22 @@ int main(void)
     uint32_t vbo = 0;
     uint32_t ebo = 0;
 
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
-    glGenBuffers(1, &ebo);
-
-    glBindVertexArray(vao);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof vertices, vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof indices, indices, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-		    sizeof (struct Vertex), NULL);
-    glBindVertexArray(0);
+//    glGenVertexArrays(1, &vao);
+//    glGenBuffers(1, &vbo);
+//    glGenBuffers(1, &ebo);
+//
+//    glBindVertexArray(vao);
+//
+//    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+//    glBufferData(GL_ARRAY_BUFFER, sizeof vertices, vertices, GL_STATIC_DRAW);
+//
+//    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+//    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof indices, indices, GL_STATIC_DRAW);
+//
+//    glEnableVertexAttribArray(0);
+//    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+//		    sizeof (struct Vertex), NULL);
+//    glBindVertexArray(0);
 
     struct File vsShaderSource = LoadShader("shaders/vert.glsl");
     struct File fsShaderSource = LoadShader("shaders/frag.glsl");
@@ -137,19 +147,26 @@ int main(void)
 //    glEnable(GL_DEPTH_TEST);
   //  glDisable(GL_DEPTH_TEST);
 
+	struct ModelProxy *modelProxy = CreateModelProxy(model);
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
-	glClearColor(1.0f, 1.0f, 0.0f, 1.0f);
+		glClearColor(1.0f, 1.0f, 0.0f, 1.0f);
 
-	glBindVertexArray(vao);
-	glUseProgram(programHandle);
 
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT,
-			NULL);
+		glUseProgram(programHandle);
 
+		for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
+			glBindVertexArray(modelProxy->meshes[i].vao);
+
+			glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
+				NULL);
+		}
+
+		
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
 
@@ -230,4 +247,45 @@ struct Model *LoadModel(const char *filename)
 	const char *absPath = UtilsFormatStr("%s/%s", RES_HOME, filename);
 	struct Model* model = OLLoad(absPath);
 	return model;
+}
+
+
+struct ModelProxy *CreateModelProxy(const struct Model *m)
+{
+	if (!m || m->NumMeshes == 0) {
+		return NULL;
+	}
+
+	struct ModelProxy *ret = malloc(sizeof *ret);
+	ret->meshes = malloc(sizeof(struct MeshProxy) * m->NumMeshes);
+	ret->numMeshes = m->NumMeshes;
+	for (uint32_t i = 0; i < m->NumMeshes; ++i) {
+	    glGenVertexArrays(1, &ret->meshes[i].vao);
+	    glGenBuffers(1, &ret->meshes[i].vbo);
+	    glGenBuffers(1, &ret->meshes[i].ebo);
+
+	    glBindVertexArray(ret->meshes[i].vao);
+
+	    glBindBuffer(GL_ARRAY_BUFFER, ret->meshes[i].vbo);
+	    glBufferData(GL_ARRAY_BUFFER, sizeof(struct Position) * m->Meshes[i].NumPositions,
+			    m->Meshes[i].Positions, GL_STATIC_DRAW);
+
+		uint32_t *indices = malloc(sizeof *indices * m->Meshes[i].NumFaces);
+		for (uint32_t j = 0; j < m->Meshes[i].NumFaces; ++j) {
+			indices[j] = m->Meshes[i].Faces[j].posIdx;
+		}
+	    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ret->meshes[i].ebo);
+	    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * m->Meshes[i].NumFaces, 
+				indices, GL_STATIC_DRAW);
+
+	    glEnableVertexAttribArray(0);
+	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+			    sizeof (struct Position), NULL);
+
+		ret->meshes[i].numIndices = m->Meshes[i].NumFaces;
+
+		free(indices);
+	}
+
+	return ret;
 }
