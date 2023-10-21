@@ -18,11 +18,22 @@ struct MeshProxy {
 	uint32_t vbo;
 	uint32_t ebo;
 	uint32_t numIndices;
+	Mat4X4 world;
 };
 
 struct ModelProxy {
 	struct MeshProxy *meshes;
 	uint32_t numMeshes;
+};
+
+enum UniformType {
+	UT_MAT4,
+	UT_VEC4F,
+	UT_VEC3F,
+	UT_VEC2F,
+	UT_FLOAT,
+	UT_INT,
+	UT_UINT,
 };
 
 struct File LoadShader(const char *shaderName);
@@ -35,26 +46,29 @@ void OnFramebufferResize(GLFWwindow *window, int width, int height);
 struct Model *LoadModel(const char *filename);
 struct ModelProxy *CreateModelProxy(const struct Model *m);
 
-struct PerCamera {
-	Mat4X4 viewProj;
-};
+void SetUniform(uint32_t programHandle, const char *name, uint32_t size, void *data, enum UniformType type);
 
-struct PerObject {
-	Mat4X4 world;
-};
+#define GLCHECK(x) x; \
+do { \
+	GLenum err; \
+	while((err = glGetError()) != GL_NO_ERROR) \
+	{ \
+		UtilsDebugPrint("ERROR in call to OpenGL at %s:%d\n", __FILE__, __LINE__); \
+	} \
+} while (0)
 
 int main(void)
 {
     GLFWwindow* window;
 
     /* Initialize the library */
-    if (!glfwInit())
+    if (!glfwInit()) {
         return -1;
+	}
 
     /* Create a windowed mode window and its OpenGL context */
     window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
-    if (!window)
-    {
+    if (!window) {
         glfwTerminate();
         return -1;
     }
@@ -63,8 +77,9 @@ int main(void)
     glfwMakeContextCurrent(window);
 
     const int version = gladLoadGL(glfwGetProcAddress);
-    if (version == 0)
+    if (version == 0) {
 	    return -1;
+	}
 
     glfwSetFramebufferSizeCallback(window, OnFramebufferResize); 
 
@@ -77,50 +92,6 @@ int main(void)
 				    mesh->NumTexCoords);
 	    }
     }
-
-    struct vec3 {
-	    float x;
-	    float y;
-	    float z;
-    };
-    struct vec2 {
-	    float u;
-	    float v;
-    };
-    struct Vertex {
-	   struct vec3 position;
-	   struct vec3 normal;
-	   struct vec2 texcoords;
-    };
-
-    const struct Vertex vertices[] = {
-	    { .position = {-0.5f, -0.5f, 0.5f } },
-	    { .position = {0.0f, 0.5f, 0.5f } },
-	    { .position = {0.5f, -0.5f, 0.5f } }
-    };
-
-    const uint32_t indices[] = {0, 1, 2};
-
-    uint32_t vao = 0;
-    uint32_t vbo = 0;
-    uint32_t ebo = 0;
-
-//    glGenVertexArrays(1, &vao);
-//    glGenBuffers(1, &vbo);
-//    glGenBuffers(1, &ebo);
-//
-//    glBindVertexArray(vao);
-//
-//    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-//    glBufferData(GL_ARRAY_BUFFER, sizeof vertices, vertices, GL_STATIC_DRAW);
-//
-//    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-//    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof indices, indices, GL_STATIC_DRAW);
-//
-//    glEnableVertexAttribArray(0);
-//    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-//		    sizeof (struct Vertex), NULL);
-//    glBindVertexArray(0);
 
     struct File vsShaderSource = LoadShader("shaders/vert.glsl");
     struct File fsShaderSource = LoadShader("shaders/frag.glsl");
@@ -142,28 +113,32 @@ int main(void)
 	    return -1;
     }
 
- //   glDisable(GL_CULL_FACE);
-//    glCullFace(GL_BACK);
-//    glEnable(GL_DEPTH_TEST);
-  //  glDisable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+	glCullFace(GL_BACK);
 
 	struct ModelProxy *modelProxy = CreateModelProxy(model);
+
+	Mat4X4 g_view = MathMat4X4Identity();
+	Mat4X4 g_proj = MathMat4X4Identity();
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         /* Render here */
-        glClear(GL_COLOR_BUFFER_BIT);
-		glClearColor(1.0f, 1.0f, 0.0f, 1.0f);
+        GLCHECK(glClear(GL_COLOR_BUFFER_BIT));
+		GLCHECK(glClearColor(1.0f, 1.0f, 0.0f, 1.0f));
 
+		GLCHECK(glUseProgram(programHandle));
 
-		glUseProgram(programHandle);
+		SetUniform(programHandle, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
+		SetUniform(programHandle, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
 
 		for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
-			glBindVertexArray(modelProxy->meshes[i].vao);
-
-			glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
-				NULL);
+			GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
+			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
+			GLCHECK(glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
+				NULL));
 		}
 
 		
@@ -209,14 +184,22 @@ struct File LoadShader(const char *shaderName)
 int CompileShader(const struct File *shader, int shaderType,
 		uint32_t *pHandle)
 {
-	*pHandle = glCreateShader(shaderType);
-	glShaderSource(*pHandle, 1, 
+	GLCHECK(*pHandle = glCreateShader(shaderType));
+	GLCHECK(glShaderSource(*pHandle, 1, 
 			(const GLchar **)&shader->contents,
-			(const GLint*)&shader->size);
-	glCompileShader(*pHandle);
+			(const GLint*)&shader->size));
+	GLCHECK(glCompileShader(*pHandle));
 	int compileStatus = 0;
-	glGetShaderiv(*pHandle, GL_COMPILE_STATUS,
-			&compileStatus);
+	GLCHECK(glGetShaderiv(*pHandle, GL_COMPILE_STATUS,
+			&compileStatus));
+	if (!compileStatus) {
+		int len = 0;
+		GLCHECK(glGetShaderiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
+		char *msg = malloc(len);
+		GLCHECK(glGetShaderInfoLog(*pHandle, len, &len, msg));
+		UtilsDebugPrint("ERROR: Failed to compile shader. %s\n", msg);
+		free(msg);
+	}
 
 	return compileStatus;
 }
@@ -224,13 +207,13 @@ int CompileShader(const struct File *shader, int shaderType,
 int LinkProgram(const uint32_t vs, const uint32_t fs,
 		uint32_t *pHandle)
 {
-	*pHandle = glCreateProgram();
-	glAttachShader(*pHandle, vs);
-	glAttachShader(*pHandle, fs);
-	glLinkProgram(*pHandle);
+	GLCHECK(*pHandle = glCreateProgram());
+	GLCHECK(glAttachShader(*pHandle, vs));
+	GLCHECK(glAttachShader(*pHandle, fs));
+	GLCHECK(glLinkProgram(*pHandle));
 	
 	int linkStatus = 0;
-	glGetProgramiv(*pHandle, GL_LINK_STATUS, &linkStatus);
+	GLCHECK(glGetProgramiv(*pHandle, GL_LINK_STATUS, &linkStatus));
 
 	return linkStatus;
 }
@@ -239,7 +222,7 @@ int LinkProgram(const uint32_t vs, const uint32_t fs,
 void OnFramebufferResize(GLFWwindow *window, int width,
 		int height)
 {
-	glViewport(0, 0, width, height);
+	GLCHECK(glViewport(0, 0, width, height));
 }
 
 struct Model *LoadModel(const char *filename)
@@ -249,6 +232,39 @@ struct Model *LoadModel(const char *filename)
 	return model;
 }
 
+void PrintModelToFile(const struct Model *m)
+{
+	if (!m) {
+		return;
+	}
+
+	FILE *out = fopen("model.txt", "w");
+	for (uint32_t i = 0; i < m->NumMeshes; ++i) {
+		fprintf(out, "%s\n", m->Meshes[i].Name);
+		fprintf(out, "Num positions: %d, num indices: %d\n", m->Meshes[i].NumPositions,
+				m->Meshes[i].NumFaces);
+		for (uint32_t j = 0; j < m->Meshes[i].NumFaces; j += 3) {
+			fprintf(out, "%d %d %d\n", m->Meshes[i].Faces[j].posIdx,
+					m->Meshes[i].Faces[j + 1].posIdx,
+					m->Meshes[i].Faces[j + 2].posIdx);
+		}
+		for (uint32_t j = 0; j < m->Meshes[i].NumPositions; ++j) {
+			fprintf(out, "%f %f %f\n", m->Meshes[i].Positions[j].x,
+				m->Meshes[i].Positions[j].y,
+				m->Meshes[i].Positions[j].z);
+		}
+		fprintf(out, "\n\n");
+	}
+	fclose(out);
+}
+
+void ValidateModelProxy(const struct ModelProxy *m)
+{
+	UtilsDebugPrint("Validating ModelProxy. Num meshes: %d\n", m->numMeshes);
+	for (uint32_t i = 0; i < m->numMeshes; ++i) {
+		UtilsDebugPrint("Mesh %d, Num indices: %d\n", i, m->meshes[i].numIndices);
+	}
+}
 
 struct ModelProxy *CreateModelProxy(const struct Model *m)
 {
@@ -256,36 +272,77 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 		return NULL;
 	}
 
+	PrintModelToFile(m);
+
 	struct ModelProxy *ret = malloc(sizeof *ret);
 	ret->meshes = malloc(sizeof(struct MeshProxy) * m->NumMeshes);
 	ret->numMeshes = m->NumMeshes;
+	// indices in *.obj are increased from 1 to N
+	// and they do not reset to 0 when next mesh starts
+	// say we have two cubes and first cube's last indices are
+	// 4 0 1
+	// then follows next cube and it's indices start from 8 and not from 1
+	// 12 10 8
+	// thus we add indexOffset and subtract it from index from *.obj
+	uint32_t indexOffset = 0;
 	for (uint32_t i = 0; i < m->NumMeshes; ++i) {
-	    glGenVertexArrays(1, &ret->meshes[i].vao);
-	    glGenBuffers(1, &ret->meshes[i].vbo);
-	    glGenBuffers(1, &ret->meshes[i].ebo);
+	    GLCHECK(glGenVertexArrays(1, &ret->meshes[i].vao));
+	    GLCHECK(glGenBuffers(1, &ret->meshes[i].vbo));
+	    GLCHECK(glGenBuffers(1, &ret->meshes[i].ebo));
 
-	    glBindVertexArray(ret->meshes[i].vao);
-
-	    glBindBuffer(GL_ARRAY_BUFFER, ret->meshes[i].vbo);
-	    glBufferData(GL_ARRAY_BUFFER, sizeof(struct Position) * m->Meshes[i].NumPositions,
-			    m->Meshes[i].Positions, GL_STATIC_DRAW);
+	    GLCHECK(glBindVertexArray(ret->meshes[i].vao));
+	    GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, ret->meshes[i].vbo));
+	    GLCHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(struct Position) * m->Meshes[i].NumPositions,
+			    m->Meshes[i].Positions, GL_STATIC_DRAW));
 
 		uint32_t *indices = malloc(sizeof *indices * m->Meshes[i].NumFaces);
 		for (uint32_t j = 0; j < m->Meshes[i].NumFaces; ++j) {
-			indices[j] = m->Meshes[i].Faces[j].posIdx;
+			indices[j] = m->Meshes[i].Faces[j].posIdx - indexOffset;
 		}
-	    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ret->meshes[i].ebo);
-	    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * m->Meshes[i].NumFaces, 
-				indices, GL_STATIC_DRAW);
+		indexOffset += m->Meshes[i].NumFaces;
+	    GLCHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ret->meshes[i].ebo));
+	    GLCHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * m->Meshes[i].NumFaces, 
+				indices, GL_STATIC_DRAW));
 
-	    glEnableVertexAttribArray(0);
-	    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-			    sizeof (struct Position), NULL);
+	    GLCHECK(glEnableVertexAttribArray(0));
+	    GLCHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+			    0, NULL));
 
 		ret->meshes[i].numIndices = m->Meshes[i].NumFaces;
 
 		free(indices);
 	}
 
+	ValidateModelProxy(ret);
+
 	return ret;
+}
+
+
+uint32_t GetUniformLocation(uint32_t programHandle, const char *name)
+{
+	GLCHECK(uint32_t loc = glGetUniformLocation(programHandle, name));
+	return loc;
+}
+
+void SetUniform(uint32_t programHandle, const char *name, uint32_t size, void *data, enum UniformType type)
+{
+	const uint32_t loc = GetUniformLocation(programHandle, name);
+	switch (type) {
+        case UT_MAT4:
+			GLCHECK(glUniformMatrix4fv(loc, 1, GL_FALSE, data));
+			break;
+        case UT_VEC4F:
+			break;
+        case UT_VEC3F:
+			break;
+        case UT_VEC2F:
+			break;
+        case UT_FLOAT:
+			break;
+        case UT_INT:
+			break;
+        case UT_UINT:
+                break;
+        }
 }
