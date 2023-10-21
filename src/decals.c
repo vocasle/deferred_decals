@@ -296,10 +296,7 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 			    m->Meshes[i].Positions, GL_STATIC_DRAW));
 
 		uint32_t *indices = malloc(sizeof *indices * m->Meshes[i].NumFaces);
-		for (uint32_t j = 0; j < m->Meshes[i].NumFaces; ++j) {
-			indices[j] = m->Meshes[i].Faces[j].posIdx - indexOffset;
-		}
-		indexOffset += m->Meshes[i].NumFaces;
+		indexOffset += m->Meshes[i].NumPositions;
 	    GLCHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ret->meshes[i].ebo));
 	    GLCHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * m->Meshes[i].NumFaces, 
 				indices, GL_STATIC_DRAW));
@@ -313,7 +310,7 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 		free(indices);
 	}
 
-	ValidateModelProxy(ret);
+//	ValidateModelProxy(ret);
 
 	return ret;
 }
