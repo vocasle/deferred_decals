@@ -13,6 +13,12 @@ struct File {
 	uint64_t size;
 };
 
+struct Vertex {
+	Vec3D position;
+	Vec3D normal;
+	Vec2D texCoords;
+};
+
 struct MeshProxy {
 	uint32_t vao;
 	uint32_t vbo;
@@ -116,18 +122,30 @@ int main(void)
 	glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
 	glCullFace(GL_BACK);
+	glDepthFunc(GL_GEQUAL);
 
 	struct ModelProxy *modelProxy = CreateModelProxy(model);
 
-	Mat4X4 g_view = MathMat4X4Identity();
-	Mat4X4 g_proj = MathMat4X4Identity();
+	const Vec3D origin = { .Z = 1.0f };
+	const Vec3D up = { .Y = 1.0f }; 
+	const Vec3D eyePos = { .Z = -50.0f };
+	const float zNear = 0.1f;
+	const float zFar = 1000.0f;
+	Mat4X4 g_view = MathMat4X4ViewAt(&eyePos, &origin, &up);
+	int fbWidth = 0;
+	int fbHeight = 0;
+	glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+	Mat4X4 g_proj = MathMat4X4PerspectiveFov(MathToRadians(90.0f),
+			(float)fbWidth / (float)fbHeight, zNear, zFar);
+
+	Mat4X4 g_world = MathMat4X4RotateY(MathToRadians(90.0f));
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         /* Render here */
         GLCHECK(glClear(GL_COLOR_BUFFER_BIT));
-		GLCHECK(glClearColor(1.0f, 1.0f, 0.0f, 1.0f));
+		GLCHECK(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
 
 		GLCHECK(glUseProgram(programHandle));
 
@@ -136,7 +154,8 @@ int main(void)
 
 		for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
 			GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
-			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
+			//SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
+			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &g_world, UT_MAT4);
 			GLCHECK(glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
 				NULL));
 		}
@@ -273,6 +292,7 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 	}
 
 	PrintModelToFile(m);
+	const Mat4X4 world = MathMat4X4Identity();
 
 	struct ModelProxy *ret = malloc(sizeof *ret);
 	ret->meshes = malloc(sizeof(struct MeshProxy) * m->NumMeshes);
@@ -284,28 +304,52 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 	// then follows next cube and it's indices start from 8 and not from 1
 	// 12 10 8
 	// thus we add indexOffset and subtract it from index from *.obj
-	uint32_t indexOffset = 0;
+	uint32_t posIdxOffset = 0;
+	uint32_t normIdxOffset = 0;
+	uint32_t texIdxOffset = 0;
 	for (uint32_t i = 0; i < m->NumMeshes; ++i) {
 	    GLCHECK(glGenVertexArrays(1, &ret->meshes[i].vao));
 	    GLCHECK(glGenBuffers(1, &ret->meshes[i].vbo));
 	    GLCHECK(glGenBuffers(1, &ret->meshes[i].ebo));
 
+		uint32_t *indices = malloc(sizeof *indices * m->Meshes[i].NumFaces);
+		struct Vertex *vertices = malloc(sizeof *vertices * m->Meshes[i].NumFaces);
+		for (uint32_t j = 0; j < m->Meshes[i].NumFaces; ++j) {
+			const uint32_t posIdx = m->Meshes[i].Faces[j].posIdx - posIdxOffset;
+			const uint32_t normIdx = m->Meshes[i].Faces[j].normIdx - normIdxOffset;
+			const uint32_t texIdx = m->Meshes[i].Faces[j].texIdx - texIdxOffset;
+			vertices[j].position = *(Vec3D*)&m->Meshes[i].Positions[posIdx];
+			vertices[j].normal = *(Vec3D*)&m->Meshes[i].Normals[normIdx];
+			vertices[j].texCoords = *(Vec2D*)&m->Meshes[i].TexCoords[texIdx];
+			indices[j] = j;
+		}
+		posIdxOffset += m->Meshes[i].NumPositions;
+		normIdxOffset += m->Meshes[i].NumNormals;
+		texIdxOffset += m->Meshes[i].NumTexCoords;
+
 	    GLCHECK(glBindVertexArray(ret->meshes[i].vao));
 	    GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, ret->meshes[i].vbo));
-	    GLCHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(struct Position) * m->Meshes[i].NumPositions,
-			    m->Meshes[i].Positions, GL_STATIC_DRAW));
+	    GLCHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(struct Vertex) * m->Meshes[i].NumFaces,
+			    vertices, GL_STATIC_DRAW));
+		free(vertices);
 
-		uint32_t *indices = malloc(sizeof *indices * m->Meshes[i].NumFaces);
-		indexOffset += m->Meshes[i].NumPositions;
+
 	    GLCHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ret->meshes[i].ebo));
 	    GLCHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * m->Meshes[i].NumFaces, 
 				indices, GL_STATIC_DRAW));
 
 	    GLCHECK(glEnableVertexAttribArray(0));
-	    GLCHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-			    0, NULL));
+	    GLCHECK(glEnableVertexAttribArray(1));
+	    GLCHECK(glEnableVertexAttribArray(2));
+	    GLCHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(struct Vertex),
+					(void*)offsetof(struct Vertex, position)));
+	    GLCHECK(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(struct Vertex),
+					(void*)offsetof(struct Vertex, normal)));
+	    GLCHECK(glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(struct Vertex),
+					(void*)offsetof(struct Vertex, texCoords)));
 
 		ret->meshes[i].numIndices = m->Meshes[i].NumFaces;
+		ret->meshes[i].world = world;
 
 		free(indices);
 	}
