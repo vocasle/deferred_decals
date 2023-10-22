@@ -2,7 +2,7 @@
 
 out vec4 color;
 
-vec3 lightPos = vec3(0.0, 20.0, 20.0);
+vec3 lightPos = vec3(0.0, 20.0, -20.0);
 
 in vec3 WorldPos;
 in vec3 Normal;

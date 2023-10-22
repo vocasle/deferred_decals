@@ -72,6 +72,10 @@ int main(void)
         return -1;
 	}
 
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
     /* Create a windowed mode window and its OpenGL context */
     window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
     if (!window) {
@@ -121,14 +125,14 @@ int main(void)
 
 	glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
+	glFrontFace(GL_CW);
 	glCullFace(GL_BACK);
-	glDepthFunc(GL_GEQUAL);
 
 	struct ModelProxy *modelProxy = CreateModelProxy(model);
 
-	const Vec3D origin = { .Z = 1.0f };
+	const Vec3D origin = { 0 };
 	const Vec3D up = { .Y = 1.0f }; 
-	const Vec3D eyePos = { .Z = -50.0f };
+	const Vec3D eyePos = { .Y = 15.0f, .Z = -30.0f };
 	const float zNear = 0.1f;
 	const float zFar = 1000.0f;
 	Mat4X4 g_view = MathMat4X4ViewAt(&eyePos, &origin, &up);
@@ -138,13 +142,14 @@ int main(void)
 	Mat4X4 g_proj = MathMat4X4PerspectiveFov(MathToRadians(90.0f),
 			(float)fbWidth / (float)fbHeight, zNear, zFar);
 
+
 	Mat4X4 g_world = MathMat4X4RotateY(MathToRadians(90.0f));
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         /* Render here */
-        GLCHECK(glClear(GL_COLOR_BUFFER_BIT));
+        GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 		GLCHECK(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
 
 		GLCHECK(glUseProgram(programHandle));
@@ -154,7 +159,7 @@ int main(void)
 
 		for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
 			GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
-			//SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
+//			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
 			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &g_world, UT_MAT4);
 			GLCHECK(glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
 				NULL));
@@ -291,7 +296,7 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 		return NULL;
 	}
 
-	PrintModelToFile(m);
+//	PrintModelToFile(m);
 	const Mat4X4 world = MathMat4X4Identity();
 
 	struct ModelProxy *ret = malloc(sizeof *ret);
