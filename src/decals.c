@@ -56,7 +56,7 @@ void OnFramebufferResize(GLFWwindow *window, int width, int height);
 struct Model *LoadModel(const char *filename);
 struct ModelProxy *CreateModelProxy(const struct Model *m);
 
-void SetUniform(uint32_t programHandle, const char *name, uint32_t size, void *data, enum UniformType type);
+void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const void *data, enum UniformType type);
 
 void RotateLight(Vec3D *light, float radius);
 double GetDeltaTime();
@@ -167,6 +167,7 @@ int main(void)
 		SetUniform(programHandle, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
 		RotateLight(&g_lightPos, radius);
 		SetUniform(programHandle, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+		SetUniform(programHandle, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 
 		for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
 			GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
@@ -382,7 +383,7 @@ uint32_t GetUniformLocation(uint32_t programHandle, const char *name)
 	return loc;
 }
 
-void SetUniform(uint32_t programHandle, const char *name, uint32_t size, void *data, enum UniformType type)
+void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const void *data, enum UniformType type)
 {
 	const uint32_t loc = GetUniformLocation(programHandle, name);
 	switch (type) {
