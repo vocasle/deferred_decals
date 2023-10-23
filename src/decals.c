@@ -42,6 +42,10 @@ enum UniformType {
 	UT_UINT,
 };
 
+struct State {
+	double dt;
+};
+
 struct File LoadShader(const char *shaderName);
 int LinkProgram(const uint32_t vs, const uint32_t fs, uint32_t *pHandle);
 int CompileShader(const struct File *shader, int shaderType, 
@@ -53,6 +57,9 @@ struct Model *LoadModel(const char *filename);
 struct ModelProxy *CreateModelProxy(const struct Model *m);
 
 void SetUniform(uint32_t programHandle, const char *name, uint32_t size, void *data, enum UniformType type);
+
+void RotateLight(Vec3D *light, float radius);
+double GetDeltaTime();
 
 #define GLCHECK(x) x; \
 do { \
@@ -144,6 +151,8 @@ int main(void)
 
 
 	Mat4X4 g_world = MathMat4X4RotateY(MathToRadians(90.0f));
+	const float radius = 35.0f;
+	Vec3D g_lightPos = { 0.0, 50.0, -20.0 };
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -156,6 +165,8 @@ int main(void)
 
 		SetUniform(programHandle, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
 		SetUniform(programHandle, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
+		RotateLight(&g_lightPos, radius);
+		SetUniform(programHandle, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 
 		for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
 			GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
@@ -381,6 +392,7 @@ void SetUniform(uint32_t programHandle, const char *name, uint32_t size, void *d
         case UT_VEC4F:
 			break;
         case UT_VEC3F:
+			GLCHECK(glUniform3fv(loc, 1, data));
 			break;
         case UT_VEC2F:
 			break;
@@ -391,4 +403,24 @@ void SetUniform(uint32_t programHandle, const char *name, uint32_t size, void *d
         case UT_UINT:
                 break;
         }
+}
+
+double GetDeltaTime()
+{
+	static double prevTime = 0.0;
+	const double now = glfwGetTime();
+	const double dt = now - prevTime;
+	prevTime = now;
+	return dt;
+}
+
+void RotateLight(Vec3D *light, float radius)
+{
+	static double time = 0.0;
+	double dt = GetDeltaTime();
+	time += dt;
+	const float x = (float)(radius * cos(time));
+	const float z = (float)(radius * sin(time));
+	light->X = x;
+	light->Z = z;
 }
