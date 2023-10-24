@@ -42,8 +42,10 @@ enum UniformType {
 	UT_UINT,
 };
 
-struct State {
-	double dt;
+struct GBuffer {
+	uint32_t positionHandle;
+	uint32_t normalHandle;
+	uint32_t albedoHandle;
 };
 
 struct File LoadShader(const char *shaderName);
@@ -60,6 +62,11 @@ void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const v
 
 void RotateLight(Vec3D *light, float radius);
 double GetDeltaTime();
+
+uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
+		int format, int type, int genFB);
+
+int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle);
 
 #define GLCHECK(x) x; \
 do { \
@@ -110,25 +117,12 @@ int main(void)
 	    }
     }
 
-    struct File vsShaderSource = LoadShader("shaders/vert.glsl");
-    struct File fsShaderSource = LoadShader("shaders/frag.glsl");
-    uint32_t vsHandle = 0;
-    if (!CompileShader(&vsShaderSource, GL_VERTEX_SHADER,
-			    &vsHandle)) {
-	    UtilsFatalError("ERROR: Failed to compile vertex shader\n");
-	    return -1;
-    }
-    uint32_t fsHandle = 0;
-    if (!CompileShader(&fsShaderSource, GL_FRAGMENT_SHADER,
-			    &fsHandle)) {
-	    UtilsFatalError("ERROR: Failed to compile fragment shader\n");
-	    return -1;
-    }
-    uint32_t programHandle = 0;
-    if (!LinkProgram(vsHandle, fsHandle, &programHandle)) {
-	    UtilsFatalError("ERROR: Failed to link program\n");
-	    return -1;
-    }
+	uint32_t programHandle = 0;
+	if (!CreateProgram("shaders/frag.glsl", "shaders/vert.glsl", &programHandle))
+	{
+		UtilsFatalError("ERROR: Failed to create program\n");
+		return -1;
+	}
 
 	glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
@@ -153,6 +147,11 @@ int main(void)
 	Mat4X4 g_world = MathMat4X4RotateY(MathToRadians(90.0f));
 	const float radius = 35.0f;
 	Vec3D g_lightPos = { 0.0, 50.0, -20.0 };
+
+	struct GBuffer g_gbuffer = { 0 };
+	g_gbuffer.albedoHandle = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TRUE);
+	g_gbuffer.normalHandle = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_TRUE);
+	g_gbuffer.positionHandle = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_TRUE);
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -187,6 +186,31 @@ int main(void)
 
     glfwTerminate();
     return 0;
+}
+
+int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle)
+{
+	struct File fragSource = LoadShader(fs);
+	struct File vertSource = LoadShader(vs);
+
+	uint32_t fragHandle = 0;
+	if(!CompileShader(&fragSource, GL_FRAGMENT_SHADER, &fragHandle))
+	{
+		return 0;
+	}
+	uint32_t vertHandle = 0;
+	if(!CompileShader(&vertSource, GL_VERTEX_SHADER, &vertHandle))
+	{
+		return 0;
+	}
+	if (!LinkProgram(vertHandle, fragHandle, programHandle))
+	{
+		return 0;
+	}
+	UtilsDebugPrint("Linked program %u\n", *programHandle);
+	GLCHECK(glDeleteShader(vertHandle));
+	GLCHECK(glDeleteShader(fragHandle));
+	return 1;
 }
 
 struct File LoadShader(const char *shaderName)
@@ -424,4 +448,19 @@ void RotateLight(Vec3D *light, float radius)
 	const float z = (float)(radius * sin(time));
 	light->X = x;
 	light->Z = z;
+}
+
+uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
+		int format, int type, int genFB)
+{
+	uint32_t handle = 0;
+	glGenTextures(1, &handle);
+	glBindTexture(GL_TEXTURE_2D, handle);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	if (genFB) {
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, handle, 0);
+	}
+	return handle;
 }
