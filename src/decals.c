@@ -3,6 +3,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include "myutils.h"
 #include "objloader.h"
@@ -43,9 +44,16 @@ enum UniformType {
 };
 
 struct GBuffer {
-	uint32_t positionHandle;
-	uint32_t normalHandle;
-	uint32_t albedoHandle;
+	uint32_t position;
+	uint32_t normal;
+	uint32_t albedo;
+	uint32_t framebuffer;
+	uint32_t depthBuffer;
+};
+
+struct FullscreenQuadPass {
+	uint32_t vbo;
+	uint32_t vao;
 };
 
 struct File LoadShader(const char *shaderName);
@@ -68,14 +76,37 @@ uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
 
 int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle);
 
+void RenderQuad(const struct FullscreenQuadPass *fsqPass);
+
+void InitQuadPass(struct FullscreenQuadPass *fsqPass);
+
 #define GLCHECK(x) x; \
 do { \
 	GLenum err; \
 	while((err = glGetError()) != GL_NO_ERROR) \
 	{ \
 		UtilsDebugPrint("ERROR in call to OpenGL at %s:%d\n", __FILE__, __LINE__); \
+		raise(SIGTRAP); \
+		exit(-1); \
 	} \
 } while (0)
+
+void GLAPIENTRY
+MessageCallback(GLenum source,
+                GLenum type,
+                GLuint id,
+                GLenum severity,
+                GLsizei length,
+                const GLchar* message,
+                const void* userParam)
+{
+  fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+           (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
+            type, severity, message);
+  exit(-1);
+}
+
+
 
 int main(void)
 {
@@ -86,8 +117,8 @@ int main(void)
         return -1;
 	}
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     /* Create a windowed mode window and its OpenGL context */
@@ -117,9 +148,20 @@ int main(void)
 	    }
     }
 
-	uint32_t programHandle = 0;
-	if (!CreateProgram("shaders/frag.glsl", "shaders/vert.glsl", &programHandle))
-	{
+//	uint32_t programHandle = 0;
+//	if (!CreateProgram("shaders/frag.glsl", "shaders/vert.glsl", &programHandle)) {
+//		UtilsFatalError("ERROR: Failed to create program\n");
+//		return -1;
+//	}
+
+	uint32_t gbufferProgram = 0;
+	if (!CreateProgram("shaders/gbuffer_frag.glsl", "shaders/vert.glsl", &gbufferProgram)) {
+		UtilsFatalError("ERROR: Failed to create program\n");
+		return -1;
+	}
+
+	uint32_t deferredProgram = 0;
+	if (!CreateProgram("shaders/deferred_frag.glsl", "shaders/deferred_vert.glsl", &deferredProgram)) {
 		UtilsFatalError("ERROR: Failed to create program\n");
 		return -1;
 	}
@@ -128,6 +170,8 @@ int main(void)
     glEnable(GL_DEPTH_TEST);
 	glFrontFace(GL_CW);
 	glCullFace(GL_BACK);
+	glEnable(GL_DEBUG_OUTPUT);
+//	glDebugMessageCallback(MessageCallback, 0);
 
 	struct ModelProxy *modelProxy = CreateModelProxy(model);
 
@@ -148,35 +192,73 @@ int main(void)
 	const float radius = 35.0f;
 	Vec3D g_lightPos = { 0.0, 50.0, -20.0 };
 
-	struct GBuffer g_gbuffer = { 0 };
-	g_gbuffer.albedoHandle = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TRUE);
-	g_gbuffer.normalHandle = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_TRUE);
-	g_gbuffer.positionHandle = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_TRUE);
+	struct GBuffer gbuffer = { 0 };
+
+    GLCHECK(glGenFramebuffers(1, &gbuffer.framebuffer));
+    GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, gbuffer.framebuffer));
+
+    GLCHECK(glGenRenderbuffers(1, &gbuffer.depthBuffer));
+    GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, gbuffer.depthBuffer));
+    GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, fbWidth, fbHeight));
+    GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, gbuffer.depthBuffer));
+
+	gbuffer.albedo = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TRUE);
+	gbuffer.normal = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_TRUE);
+	gbuffer.position = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_TRUE);
+
+    // finally check if framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		UtilsDebugPrint("ERROR: Failed to create GBuffer framebuffer\n");
+		return -1;
+	}
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	struct FullscreenQuadPass fsqPass = { 0 };
+	InitQuadPass(&fsqPass);
+
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         /* Render here */
+//        GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+//		GLCHECK(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
+
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, gbuffer.framebuffer));
         GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-		GLCHECK(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
 
-		GLCHECK(glUseProgram(programHandle));
+		GLCHECK(glUseProgram(gbufferProgram));
 
-		SetUniform(programHandle, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
-		SetUniform(programHandle, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
+		SetUniform(gbufferProgram, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
+		SetUniform(gbufferProgram, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
 		RotateLight(&g_lightPos, radius);
-		SetUniform(programHandle, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
-		SetUniform(programHandle, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+		SetUniform(gbufferProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+		SetUniform(gbufferProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 
 		for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
 			GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
 //			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
-			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &g_world, UT_MAT4);
+			SetUniform(gbufferProgram, "g_world", sizeof(Mat4X4), &g_world, UT_MAT4);
 			GLCHECK(glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
 				NULL));
 		}
 
-		
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+		GLCHECK(glUseProgram(deferredProgram));
+		GLCHECK(glActiveTexture(GL_TEXTURE0));
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, gbuffer.position));
+		GLCHECK(glActiveTexture(GL_TEXTURE1));
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, gbuffer.normal));
+		GLCHECK(glActiveTexture(GL_TEXTURE2));
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, gbuffer.albedo));
+//		SetUniform(deferredProgram, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
+//		SetUniform(deferredProgram, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
+		RotateLight(&g_lightPos, radius);
+		SetUniform(deferredProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+		SetUniform(deferredProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+
+		RenderQuad(&fsqPass);
+
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
 
@@ -274,6 +356,14 @@ int LinkProgram(const uint32_t vs, const uint32_t fs,
 	
 	int linkStatus = 0;
 	GLCHECK(glGetProgramiv(*pHandle, GL_LINK_STATUS, &linkStatus));
+	if (!linkStatus) {
+		int len = 0;
+		GLCHECK(glGetProgramiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
+		char *msg = malloc(len);
+		GLCHECK(glGetProgramInfoLog(*pHandle, len, &len, msg));
+		UtilsDebugPrint("ERROR: Failed to link shaders. %s\n", msg);
+		free(msg);
+	}
 
 	return linkStatus;
 }
@@ -463,4 +553,32 @@ uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, handle, 0);
 	}
 	return handle;
+}
+
+void InitQuadPass(struct FullscreenQuadPass *fsqPass)
+{
+	const float quadVertices[] = {
+		// positions        // texture Coords
+		-1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+		-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+		 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+		 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+	};
+	// setup plane VAO
+	glGenVertexArrays(1, &fsqPass->vao);
+	glGenBuffers(1, &fsqPass->vbo);
+	glBindVertexArray(fsqPass->vao);
+	glBindBuffer(GL_ARRAY_BUFFER, fsqPass->vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+}
+
+void RenderQuad(const struct FullscreenQuadPass *fsqPass)
+{
+    glBindVertexArray(fsqPass->vao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
 }
