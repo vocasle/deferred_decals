@@ -56,8 +56,14 @@ struct FullscreenQuadPass {
 	uint32_t vao;
 };
 
+struct FramebufferSize {
+	int width;
+	int height;
+};
+
 struct Game {
 	struct GBuffer gbuffer;
+	struct FramebufferSize framebufferSize;;
 };
 
 struct File LoadShader(const char *shaderName);
@@ -107,14 +113,13 @@ MessageCallback(GLenum source,
   fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
            (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
             type, severity, message);
-  exit(-1);
 }
 
 int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight);
 
 int main(void)
 {
-    GLFWwindow* window;
+    GLFWwindow* window = NULL;
 
     /* Initialize the library */
     if (!glfwInit()) {
@@ -133,6 +138,8 @@ int main(void)
     }
 
 	struct Game game = { 0 };
+	glfwGetFramebufferSize(window, &game.framebufferSize.width,
+			&game.framebufferSize.height);
 	glfwSetWindowUserPointer(window, &game);
 
     /* Make the window's context current */
@@ -178,7 +185,7 @@ int main(void)
 	glFrontFace(GL_CW);
 	glCullFace(GL_BACK);
 	glEnable(GL_DEBUG_OUTPUT);
-//	glDebugMessageCallback(MessageCallback, 0);
+	glDebugMessageCallback(MessageCallback, 0);
 
 	struct ModelProxy *modelProxy = CreateModelProxy(model);
 
@@ -188,18 +195,16 @@ int main(void)
 	const float zNear = 0.1f;
 	const float zFar = 1000.0f;
 	Mat4X4 g_view = MathMat4X4ViewAt(&eyePos, &origin, &up);
-	int fbWidth = 0;
-	int fbHeight = 0;
-	glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
 	Mat4X4 g_proj = MathMat4X4PerspectiveFov(MathToRadians(90.0f),
-			(float)fbWidth / (float)fbHeight, zNear, zFar);
+			(float)game.framebufferSize.width / (float)game.framebufferSize.height,
+			zNear, zFar);
 
 
 	Mat4X4 g_world = MathMat4X4RotateY(MathToRadians(90.0f));
 	const float radius = 35.0f;
 	Vec3D g_lightPos = { 0.0, 50.0, -20.0 };
 
-	InitGBuffer(&game.gbuffer, fbWidth, fbHeight);
+	InitGBuffer(&game.gbuffer, game.framebufferSize.width, game.framebufferSize.height);
 
 	struct FullscreenQuadPass fsqPass = { 0 };
 	InitQuadPass(&fsqPass);
@@ -208,44 +213,59 @@ int main(void)
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
-        /* Render here */
-//        GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-//		GLCHECK(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
+		// GBuffer Pass
+		// bind GBuffer and draw geometry to GBuffer
+		{
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, game.gbuffer.framebuffer));
+			GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+			GLCHECK(glUseProgram(gbufferProgram));
 
-		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, game.gbuffer.framebuffer));
-        GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+			SetUniform(gbufferProgram, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
+			SetUniform(gbufferProgram, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
+			RotateLight(&g_lightPos, radius);
+			SetUniform(gbufferProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+			SetUniform(gbufferProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 
-		GLCHECK(glUseProgram(gbufferProgram));
-
-		SetUniform(gbufferProgram, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
-		SetUniform(gbufferProgram, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
-		RotateLight(&g_lightPos, radius);
-		SetUniform(gbufferProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
-		SetUniform(gbufferProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
-
-		for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
-			GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
-//			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
-			SetUniform(gbufferProgram, "g_world", sizeof(Mat4X4), &g_world, UT_MAT4);
-			GLCHECK(glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
-				NULL));
+			for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
+				GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
+	//			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
+				SetUniform(gbufferProgram, "g_world", sizeof(Mat4X4), &g_world, UT_MAT4);
+				GLCHECK(glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
+					NULL));
+			}
+			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 		}
 
-		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
-		GLCHECK(glUseProgram(deferredProgram));
-		GLCHECK(glActiveTexture(GL_TEXTURE0));
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.position));
-		GLCHECK(glActiveTexture(GL_TEXTURE1));
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.normal));
-		GLCHECK(glActiveTexture(GL_TEXTURE2));
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.albedo));
-//		SetUniform(deferredProgram, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
-//		SetUniform(deferredProgram, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
-		RotateLight(&g_lightPos, radius);
-		SetUniform(deferredProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
-		SetUniform(deferredProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+		// Deferred Shading Pass
+		{
+			GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+			GLCHECK(glUseProgram(deferredProgram));
+			GLCHECK(glActiveTexture(GL_TEXTURE0));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.position));
+			GLCHECK(glActiveTexture(GL_TEXTURE1));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.normal));
+			GLCHECK(glActiveTexture(GL_TEXTURE2));
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.albedo));
+	//		SetUniform(deferredProgram, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
+	//		SetUniform(deferredProgram, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
+			RotateLight(&g_lightPos, radius);
+			SetUniform(deferredProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+			SetUniform(deferredProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+			RenderQuad(&fsqPass);
+		}
 
-		RenderQuad(&fsqPass);
+		// Copy gbuffer depth to default framebuffer's depth 
+		{
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, game.gbuffer.framebuffer);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
+        // blit to default framebuffer. Note that this may or may not work as the internal formats of both the FBO and default framebuffer have to match.
+        // the internal formats are implementation defined. This works on all of my systems, but if it doesn't on yours you'll likely have to write to the 		
+        // depth buffer in another shader stage (or somehow see to match the default framebuffer's internal format with the FBO's internal format).
+			glBlitFramebuffer(0, 0, game.framebufferSize.width, game.framebufferSize.height,
+					0, 0, game.framebufferSize.width, game.framebufferSize.height, 
+					GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		}
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
@@ -362,6 +382,8 @@ void OnFramebufferResize(GLFWwindow *window, int width,
 {
 	GLCHECK(glViewport(0, 0, width, height));
 	struct Game *game = glfwGetWindowUserPointer(window);
+	game->framebufferSize.width = width;
+	game->framebufferSize.height = height;
 	InitGBuffer(&game->gbuffer, width, height);
 }
 
@@ -585,18 +607,17 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
     GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
 				GL_RENDERBUFFER, gbuffer->depthBuffer));
 
-	gbuffer->albedo = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE,
+	gbuffer->position = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT,
 			GL_COLOR_ATTACHMENT0, GL_TRUE);
 	gbuffer->normal = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT,
-			GL_COLOR_ATTACHMENT1, GL_TRUE);
-	gbuffer->position = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT,
-			GL_COLOR_ATTACHMENT2, GL_TRUE);
+		GL_COLOR_ATTACHMENT1, GL_TRUE);
+	gbuffer->albedo = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE,
+		GL_COLOR_ATTACHMENT2, GL_TRUE);
 
 	const uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
 		GL_COLOR_ATTACHMENT2 };
 	GLCHECK(glDrawBuffers(3, attachments));
 
-    // finally check if framebuffer is complete
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		UtilsDebugPrint("ERROR: Failed to create GBuffer framebuffer\n");
 		return 0;
