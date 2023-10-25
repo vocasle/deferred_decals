@@ -56,6 +56,10 @@ struct FullscreenQuadPass {
 	uint32_t vao;
 };
 
+struct Game {
+	struct GBuffer gbuffer;
+};
+
 struct File LoadShader(const char *shaderName);
 int LinkProgram(const uint32_t vs, const uint32_t fs, uint32_t *pHandle);
 int CompileShader(const struct File *shader, int shaderType, 
@@ -72,7 +76,7 @@ void RotateLight(Vec3D *light, float radius);
 double GetDeltaTime();
 
 uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
-		int format, int type, int genFB);
+		int format, int type, int attachment, int genFB);
 
 int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle);
 
@@ -106,7 +110,7 @@ MessageCallback(GLenum source,
   exit(-1);
 }
 
-
+int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight);
 
 int main(void)
 {
@@ -127,6 +131,9 @@ int main(void)
         glfwTerminate();
         return -1;
     }
+
+	struct Game game = { 0 };
+	glfwSetWindowUserPointer(window, &game);
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
@@ -192,26 +199,7 @@ int main(void)
 	const float radius = 35.0f;
 	Vec3D g_lightPos = { 0.0, 50.0, -20.0 };
 
-	struct GBuffer gbuffer = { 0 };
-
-    GLCHECK(glGenFramebuffers(1, &gbuffer.framebuffer));
-    GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, gbuffer.framebuffer));
-
-    GLCHECK(glGenRenderbuffers(1, &gbuffer.depthBuffer));
-    GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, gbuffer.depthBuffer));
-    GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, fbWidth, fbHeight));
-    GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, gbuffer.depthBuffer));
-
-	gbuffer.albedo = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, GL_TRUE);
-	gbuffer.normal = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_TRUE);
-	gbuffer.position = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT, GL_TRUE);
-
-    // finally check if framebuffer is complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		UtilsDebugPrint("ERROR: Failed to create GBuffer framebuffer\n");
-		return -1;
-	}
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	InitGBuffer(&game.gbuffer, fbWidth, fbHeight);
 
 	struct FullscreenQuadPass fsqPass = { 0 };
 	InitQuadPass(&fsqPass);
@@ -224,7 +212,7 @@ int main(void)
 //        GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 //		GLCHECK(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
 
-		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, gbuffer.framebuffer));
+		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, game.gbuffer.framebuffer));
         GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
 		GLCHECK(glUseProgram(gbufferProgram));
@@ -246,11 +234,11 @@ int main(void)
 		GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 		GLCHECK(glUseProgram(deferredProgram));
 		GLCHECK(glActiveTexture(GL_TEXTURE0));
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, gbuffer.position));
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.position));
 		GLCHECK(glActiveTexture(GL_TEXTURE1));
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, gbuffer.normal));
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.normal));
 		GLCHECK(glActiveTexture(GL_TEXTURE2));
-		GLCHECK(glBindTexture(GL_TEXTURE_2D, gbuffer.albedo));
+		GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.albedo));
 //		SetUniform(deferredProgram, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
 //		SetUniform(deferredProgram, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
 		RotateLight(&g_lightPos, radius);
@@ -373,6 +361,8 @@ void OnFramebufferResize(GLFWwindow *window, int width,
 		int height)
 {
 	GLCHECK(glViewport(0, 0, width, height));
+	struct Game *game = glfwGetWindowUserPointer(window);
+	InitGBuffer(&game->gbuffer, width, height);
 }
 
 struct Model *LoadModel(const char *filename)
@@ -541,7 +531,7 @@ void RotateLight(Vec3D *light, float radius)
 }
 
 uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
-		int format, int type, int genFB)
+		int format, int type, int attachment, int genFB)
 {
 	uint32_t handle = 0;
 	glGenTextures(1, &handle);
@@ -550,7 +540,7 @@ uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	if (genFB) {
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, handle, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, handle, 0);
 	}
 	return handle;
 }
@@ -581,4 +571,36 @@ void RenderQuad(const struct FullscreenQuadPass *fsqPass)
     glBindVertexArray(fsqPass->vao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
+}
+
+int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
+{
+	GLCHECK(glGenFramebuffers(1, &gbuffer->framebuffer));
+    GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, gbuffer->framebuffer));
+
+    GLCHECK(glGenRenderbuffers(1, &gbuffer->depthBuffer));
+    GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, gbuffer->depthBuffer));
+    GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT,
+				fbWidth, fbHeight));
+    GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+				GL_RENDERBUFFER, gbuffer->depthBuffer));
+
+	gbuffer->albedo = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE,
+			GL_COLOR_ATTACHMENT0, GL_TRUE);
+	gbuffer->normal = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT,
+			GL_COLOR_ATTACHMENT1, GL_TRUE);
+	gbuffer->position = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT,
+			GL_COLOR_ATTACHMENT2, GL_TRUE);
+
+	const uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
+		GL_COLOR_ATTACHMENT2 };
+	GLCHECK(glDrawBuffers(3, attachments));
+
+    // finally check if framebuffer is complete
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		UtilsDebugPrint("ERROR: Failed to create GBuffer framebuffer\n");
+		return 0;
+	}
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	return 1;
 }
