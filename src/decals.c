@@ -182,7 +182,7 @@ int main(void)
 
 	glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
-	glFrontFace(GL_CW);
+//	glFrontFace(GL_CW);
 	glCullFace(GL_BACK);
 	glEnable(GL_DEBUG_OUTPUT);
 	glDebugMessageCallback(MessageCallback, 0);
@@ -200,7 +200,11 @@ int main(void)
 			zNear, zFar);
 
 
-	Mat4X4 g_world = MathMat4X4RotateY(MathToRadians(90.0f));
+//	Mat4X4 g_world = MathMat4X4RotateY(MathToRadians(90.0f));
+	Mat4X4 g_world = MathMat4X4Identity();
+	g_world.A[2][2] = -g_world.A[2][2];
+	Mat4X4 rotY90 = MathMat4X4RotateY(MathToRadians(90.0f));
+	g_world = MathMat4X4MultMat4X4ByMat4X4(&g_world, &rotY90);
 	const float radius = 35.0f;
 	Vec3D g_lightPos = { 0.0, 50.0, -20.0 };
 
@@ -208,7 +212,6 @@ int main(void)
 
 	struct FullscreenQuadPass fsqPass = { 0 };
 	InitQuadPass(&fsqPass);
-
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -251,6 +254,13 @@ int main(void)
 			RotateLight(&g_lightPos, radius);
 			SetUniform(deferredProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			SetUniform(deferredProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+
+			const uint32_t g_position = 0;
+			const uint32_t g_normal = 1;
+			const uint32_t g_albedo = 2;
+			SetUniform(deferredProgram, "g_position", sizeof(uint32_t), &g_position, UT_INT);
+			SetUniform(deferredProgram, "g_normal", sizeof(uint32_t), &g_normal, UT_INT);
+			SetUniform(deferredProgram, "g_albedo", sizeof(uint32_t), &g_albedo, UT_INT);
 			RenderQuad(&fsqPass);
 		}
 
@@ -526,8 +536,10 @@ void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const v
         case UT_FLOAT:
 			break;
         case UT_INT:
+			GLCHECK(glUniform1i(loc, *(const int32_t *)data));
 			break;
         case UT_UINT:
+			GLCHECK(glUniform1ui(loc, *(const uint32_t *)data));
                 break;
         }
 }
