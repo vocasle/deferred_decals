@@ -5,6 +5,8 @@ OBJS := $(shell find src -name '*.c')
 
 RES_PATH=\"$(shell pwd)/res\"
 
+INCLUDE_DIRS := -Ithirdparty -Ithirdparty/glad/include
+
 all: glad decals
 
 glad:
@@ -12,8 +14,7 @@ glad:
 	ar rcs build/libglad.a build/glad.o
 
 decals: $(SRCS) build/libglad.a
-	echo SOURCES: $(SRCS)
-	cc -DRES_HOME=$(RES_PATH) $(SRCS) -g -o build/$@ -lm -lglfw -Lbuild -lglad -Ithirdparty/glad/include 
+	cc -DRES_HOME=$(RES_PATH) $(SRCS) -g -o build/$@ -lm -lglfw -Lbuild -lglad $(INCLUDE_DIRS) 
 
 clean:
 	rm -rm build 

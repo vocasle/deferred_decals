@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 #include "myutils.h"
 #include "objloader.h"
@@ -72,7 +74,6 @@ int CompileShader(const struct File *shader, int shaderType,
 		uint32_t *pHandle);
 void OnFramebufferResize(GLFWwindow *window, int width, int height);
 
-
 struct Model *LoadModel(const char *filename);
 struct ModelProxy *CreateModelProxy(const struct Model *m);
 
@@ -82,7 +83,7 @@ void RotateLight(Vec3D *light, float radius);
 double GetDeltaTime();
 
 uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
-		int format, int type, int attachment, int genFB);
+		int format, int type, int attachment, int genFB, const char *imagePath);
 
 int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle);
 
@@ -113,6 +114,7 @@ MessageCallback(GLenum source,
   fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
            (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
             type, severity, message);
+  exit(-1);
 }
 
 int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight);
@@ -213,6 +215,9 @@ int main(void)
 	struct FullscreenQuadPass fsqPass = { 0 };
 	InitQuadPass(&fsqPass);
 
+	const uint32_t albedoTex = CreateTexture2D(0, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0, GL_FALSE, 
+		"assets/dry-rocky-ground-bl/dry-rocky-ground_albedo.png"); 
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
@@ -228,6 +233,11 @@ int main(void)
 			RotateLight(&g_lightPos, radius);
 			SetUniform(gbufferProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			SetUniform(gbufferProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+
+			GLCHECK(glActiveTexture(GL_TEXTURE0));
+			const int32_t albedoTexLoc = 0;
+			SetUniform(gbufferProgram, "g_albedoTex", sizeof(int32_t), &albedoTexLoc, UT_INT); 
+			GLCHECK(glBindTexture(GL_TEXTURE_2D, albedoTex));
 
 			for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
 				GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
@@ -565,16 +575,35 @@ void RotateLight(Vec3D *light, float radius)
 }
 
 uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
-		int format, int type, int attachment, int genFB)
+		int format, int type, int attachment, int genFB, const char *imagePath)
 {
+	uint8_t *data = NULL;
+	if (imagePath)
+	{
+		int w = 0;
+		int h = 0;
+		int channelsInFile = 0;
+		data = stbi_load(UtilsFormatStr("%s/%s", RES_HOME, imagePath), &w, &h,
+			&channelsInFile, STBI_rgb_alpha);
+		if (!data) {
+			UtilsDebugPrint("ERROR: Failed to load %s\n", imagePath);
+			exit(-1);
+		}
+		width = w;
+		height = h;
+	}
+
 	uint32_t handle = 0;
 	glGenTextures(1, &handle);
 	glBindTexture(GL_TEXTURE_2D, handle);
-	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, data);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	if (genFB) {
 		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, handle, 0);
+	}
+	if (data) {
+		stbi_image_free(data);
 	}
 	return handle;
 }
@@ -620,11 +649,11 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 				GL_RENDERBUFFER, gbuffer->depthBuffer));
 
 	gbuffer->position = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT,
-			GL_COLOR_ATTACHMENT0, GL_TRUE);
+			GL_COLOR_ATTACHMENT0, GL_TRUE, NULL);
 	gbuffer->normal = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT,
-		GL_COLOR_ATTACHMENT1, GL_TRUE);
+		GL_COLOR_ATTACHMENT1, GL_TRUE, NULL);
 	gbuffer->albedo = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE,
-		GL_COLOR_ATTACHMENT2, GL_TRUE);
+		GL_COLOR_ATTACHMENT2, GL_TRUE, NULL);
 
 	const uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
 		GL_COLOR_ATTACHMENT2 };
