@@ -102,6 +102,8 @@ do { \
 	} \
 } while (0)
 
+#define ARRAY_COUNT(x) (uint32_t)(sizeof(x) / sizeof(x[0]))
+
 void GLAPIENTRY
 MessageCallback(GLenum source,
                 GLenum type,
@@ -215,9 +217,21 @@ int main(void)
 	struct FullscreenQuadPass fsqPass = { 0 };
 	InitQuadPass(&fsqPass);
 
-	const uint32_t albedoTex = CreateTexture2D(0, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0, GL_FALSE, 
-		"assets/dry-rocky-ground-bl/dry-rocky-ground_albedo.png"); 
+	const char *albedoTexturePaths[] = {
+		"assets/older-wood-flooring-bl/older-wood-flooring_albedo.png",
+		"assets/dry-rocky-ground-bl/dry-rocky-ground_albedo.png",
+		"assets/painted-worn-asphalt-bl/painted-worn-asphalt_albedo.png",
+		"assets/rusty-metal-bl/rusty-metal_albedo.png"
+	};
 
+	uint32_t albedoTextureHandles[ARRAY_COUNT(albedoTexturePaths)] = { 0 };
+	UtilsDebugPrint("Found %d albedo textures\n", ARRAY_COUNT(albedoTexturePaths));
+
+	for (uint32_t i = 0; i < ARRAY_COUNT(albedoTexturePaths); ++i) {
+		albedoTextureHandles[i] = CreateTexture2D(0, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0, GL_FALSE, 
+			albedoTexturePaths[i]); 
+	}
+	
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
@@ -237,9 +251,12 @@ int main(void)
 			GLCHECK(glActiveTexture(GL_TEXTURE0));
 			const int32_t albedoTexLoc = 0;
 			SetUniform(gbufferProgram, "g_albedoTex", sizeof(int32_t), &albedoTexLoc, UT_INT); 
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, albedoTex));
 
 			for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
+				const uint32_t texHandleIdx = i % ARRAY_COUNT(albedoTexturePaths);
+//				UtilsDebugPrint("Binding texture %u (%s) for model %u\n",
+//						texHandleIdx, albedoTexturePaths[texHandleIdx], i);
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, albedoTextureHandles[texHandleIdx]));
 				GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
 	//			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
 				SetUniform(gbufferProgram, "g_world", sizeof(Mat4X4), &g_world, UT_MAT4);
