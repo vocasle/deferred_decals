@@ -6,6 +6,7 @@
 #include <signal.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#include <mikktspace.h>
 
 #include "myutils.h"
 #include "objloader.h"
@@ -20,6 +21,7 @@ struct Vertex {
 	Vec3D position;
 	Vec3D normal;
 	Vec2D texCoords;
+	Vec4D tangent;
 };
 
 struct MeshProxy {
@@ -45,6 +47,30 @@ enum UniformType {
 	UT_UINT,
 };
 
+enum ObjectIdentifier {
+	OI_BUFFER,
+	OI_SHADER,
+	OI_PROGRAM,
+	OI_VERTEX_ARRAY,
+	OI_QUERY,
+	OI_PROGRAM_PIPELINE,
+	OI_TRANSFORM_FEEDBACK,
+	OI_SAMPLER,
+	OI_TEXTURE,
+	OI_RENDERBUFFER,
+	OI_FRAMEBUFFER,
+};
+
+enum GBufferDebugMode {
+	GDM_NONE,
+	GDM_VERTEX_NORMAL,
+	GDM_TANGENT,
+	GDM_BITANGENT,
+	GDM_NORMAL_MAP,
+	GDM_ALBEDO,
+	GDM_POSITION,
+};
+
 struct GBuffer {
 	uint32_t position;
 	uint32_t normal;
@@ -66,6 +92,7 @@ struct FramebufferSize {
 struct Game {
 	struct GBuffer gbuffer;
 	struct FramebufferSize framebufferSize;;
+	enum GBufferDebugMode gbufferDebugMode;
 };
 
 struct File LoadShader(const char *shaderName);
@@ -90,6 +117,19 @@ int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle);
 void RenderQuad(const struct FullscreenQuadPass *fsqPass);
 
 void InitQuadPass(struct FullscreenQuadPass *fsqPass);
+
+struct CalculateTangetData {
+	struct Vertex *vertices;
+	uint32_t numVertices;
+	const uint32_t *indices;
+	uint32_t numIndices;
+};
+void CalculateTangentArray(struct CalculateTangetData *data);
+
+void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name,
+		const char *label);
+
+void ProcessInput(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 #define GLCHECK(x) x; \
 do { \
@@ -145,6 +185,8 @@ int main(void)
 	glfwGetFramebufferSize(window, &game.framebufferSize.width,
 			&game.framebufferSize.height);
 	glfwSetWindowUserPointer(window, &game);
+
+	glfwSetKeyCallback(window, ProcessInput);
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
@@ -224,13 +266,29 @@ int main(void)
 		"assets/rusty-metal-bl/rusty-metal_albedo.png"
 	};
 
+	const char *normalTexturesPaths[] = {
+		"assets/older-wood-flooring-bl/older-wood-flooring_normal-ogl.png",
+		"assets/dry-rocky-ground-bl/dry-rocky-ground_normal-ogl.png",
+		"assets/painted-worn-asphalt-bl/painted-worn-asphalt_normal-ogl.png",
+		"assets/rusty-metal-bl/rusty-metal_normal-ogl.png"
+	};
+
 	uint32_t albedoTextureHandles[ARRAY_COUNT(albedoTexturePaths)] = { 0 };
+	uint32_t normalTextureHandles[ARRAY_COUNT(albedoTexturePaths)] = { 0 };
 	UtilsDebugPrint("Found %d albedo textures\n", ARRAY_COUNT(albedoTexturePaths));
 
 	for (uint32_t i = 0; i < ARRAY_COUNT(albedoTexturePaths); ++i) {
 		albedoTextureHandles[i] = CreateTexture2D(0, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0, GL_FALSE, 
 			albedoTexturePaths[i]); 
 	}
+
+	for (uint32_t i = 0; i < ARRAY_COUNT(normalTexturesPaths); ++i) {
+		normalTextureHandles[i] = CreateTexture2D(0, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0, GL_FALSE, 
+			normalTexturesPaths[i]); 
+	}
+
+	const int32_t C_ALBEDO_TEX_LOC = 0;
+	const int32_t C_NORMAL_TEX_LOC = 1;
 	
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -248,15 +306,19 @@ int main(void)
 			SetUniform(gbufferProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			SetUniform(gbufferProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 
-			GLCHECK(glActiveTexture(GL_TEXTURE0));
-			const int32_t albedoTexLoc = 0;
-			SetUniform(gbufferProgram, "g_albedoTex", sizeof(int32_t), &albedoTexLoc, UT_INT); 
+			SetUniform(gbufferProgram, "g_albedoTex", sizeof(int32_t), &C_ALBEDO_TEX_LOC, UT_INT); 
+			SetUniform(gbufferProgram, "g_normalTex", sizeof(int32_t), &C_NORMAL_TEX_LOC, UT_INT); 
+			SetUniform(gbufferProgram, "g_gbufferDebugMode", sizeof(int32_t),
+					&game.gbufferDebugMode, UT_INT); 
 
 			for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
 				const uint32_t texHandleIdx = i % ARRAY_COUNT(albedoTexturePaths);
 //				UtilsDebugPrint("Binding texture %u (%s) for model %u\n",
 //						texHandleIdx, albedoTexturePaths[texHandleIdx], i);
+				GLCHECK(glActiveTexture(GL_TEXTURE0));
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, albedoTextureHandles[texHandleIdx]));
+				GLCHECK(glActiveTexture(GL_TEXTURE1));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, normalTextureHandles[texHandleIdx]));
 				GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
 	//			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
 				SetUniform(gbufferProgram, "g_world", sizeof(Mat4X4), &g_world, UT_MAT4);
@@ -281,6 +343,8 @@ int main(void)
 			RotateLight(&g_lightPos, radius);
 			SetUniform(deferredProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			SetUniform(deferredProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+			SetUniform(deferredProgram, "g_gbufferDebugMode", sizeof(int32_t),
+					&game.gbufferDebugMode, UT_INT); 
 
 			const uint32_t g_position = 0;
 			const uint32_t g_normal = 1;
@@ -501,13 +565,18 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 			vertices[j].position = *(Vec3D*)&m->Meshes[i].Positions[posIdx];
 			vertices[j].normal = *(Vec3D*)&m->Meshes[i].Normals[normIdx];
 			vertices[j].texCoords = *(Vec2D*)&m->Meshes[i].TexCoords[texIdx];
+			vertices[j].tangent = MathVec4DZero();
 			indices[j] = j;
 		}
 		posIdxOffset += m->Meshes[i].NumPositions;
 		normIdxOffset += m->Meshes[i].NumNormals;
 		texIdxOffset += m->Meshes[i].NumTexCoords;
 
+		struct CalculateTangetData data = { vertices, m->Meshes[i].NumFaces, indices, m->Meshes[i].NumFaces }	;
+		CalculateTangentArray(&data);  
+
 	    GLCHECK(glBindVertexArray(ret->meshes[i].vao));
+		SetObjectName(OI_VERTEX_ARRAY, ret->meshes[i].vao, m->Meshes[i].Name); 
 	    GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, ret->meshes[i].vbo));
 	    GLCHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(struct Vertex) * m->Meshes[i].NumFaces,
 			    vertices, GL_STATIC_DRAW));
@@ -521,12 +590,15 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 	    GLCHECK(glEnableVertexAttribArray(0));
 	    GLCHECK(glEnableVertexAttribArray(1));
 	    GLCHECK(glEnableVertexAttribArray(2));
+	    GLCHECK(glEnableVertexAttribArray(3));
 	    GLCHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(struct Vertex),
 					(void*)offsetof(struct Vertex, position)));
 	    GLCHECK(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(struct Vertex),
 					(void*)offsetof(struct Vertex, normal)));
 	    GLCHECK(glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(struct Vertex),
 					(void*)offsetof(struct Vertex, texCoords)));
+	    GLCHECK(glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(struct Vertex),
+					(void*)offsetof(struct Vertex, tangent)));
 
 		ret->meshes[i].numIndices = m->Meshes[i].NumFaces;
 		ret->meshes[i].world = world;
@@ -682,4 +754,147 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 	}
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	return 1;
+}
+
+void GetNormal(const SMikkTSpaceContext * pContext, float fvNormOut[], const int iFace, const int iVert)
+{
+	struct CalculateTangetData *data = pContext->m_pUserData;
+	fvNormOut[0] = data->vertices[iFace * 3 + iVert].normal.X;
+	fvNormOut[1] = data->vertices[iFace * 3 + iVert].normal.Y;
+	fvNormOut[2] = data->vertices[iFace * 3 + iVert].normal.Z;
+}
+
+void GetPosition(const SMikkTSpaceContext * pContext, float fvPosOut[], const int iFace, const int iVert)
+{
+	struct CalculateTangetData *data = pContext->m_pUserData;
+	fvPosOut[0] = data->vertices[iFace * 3 + iVert].position.X;
+	fvPosOut[1] = data->vertices[iFace * 3 + iVert].position.Y;
+	fvPosOut[2] = data->vertices[iFace * 3 + iVert].position.Z;
+}
+
+void GetTexCoords(const SMikkTSpaceContext * pContext, float fvTexcOut[], const int iFace, const int iVert)
+{
+	struct CalculateTangetData *data = pContext->m_pUserData;
+	fvTexcOut[0] = data->vertices[iFace * 3 + iVert].texCoords.X;
+	fvTexcOut[1] = data->vertices[iFace * 3 + iVert].texCoords.Y;
+}
+
+
+int GetNumVerticesOfFace(const SMikkTSpaceContext * pContext, const int iFace)
+{
+	return 3;
+}
+
+void SetTSpaceBasic(const SMikkTSpaceContext * pContext, const float fvTangent[],
+		const float fSign, const int iFace, const int iVert)
+{
+	struct CalculateTangetData *data = pContext->m_pUserData;
+	data->vertices[iFace * 3 + iVert].tangent.X = fvTangent[0];
+	data->vertices[iFace * 3 + iVert].tangent.Y = fvTangent[1];
+	data->vertices[iFace * 3 + iVert].tangent.Z = fvTangent[2];
+	data->vertices[iFace * 3 + iVert].tangent.W = fSign;
+}
+
+int GetNumFaces(const SMikkTSpaceContext * pContext)
+{
+	struct CalculateTangetData *data = pContext->m_pUserData;
+	return data->numIndices / 3;
+}
+
+void CalculateTangentArray(struct CalculateTangetData *data)
+{
+	SMikkTSpaceInterface interface = { 0 };
+	interface.m_setTSpaceBasic = SetTSpaceBasic;
+	interface.m_getNumFaces = GetNumFaces;
+	interface.m_getNumVerticesOfFace = GetNumVerticesOfFace;
+	interface.m_getPosition = GetPosition;
+	interface.m_getNormal = GetNormal;
+	interface.m_getTexCoord = GetTexCoords;
+
+	SMikkTSpaceContext context = { .m_pInterface = &interface, .m_pUserData = data };
+	genTangSpaceDefault(&context);	
+}
+
+void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name, const char *label)
+{
+	const char *prefix = NULL;
+	int identifier = 0; 
+	switch (objectIdentifier) {
+        case OI_BUFFER:
+			prefix = "BUFFER";
+			identifier = GL_BUFFER;
+			break;
+        case OI_SHADER:
+			prefix = "SHADER";
+			identifier = GL_SHADER;
+			break;
+        case OI_PROGRAM:
+			prefix = "PROGRAM";
+			identifier = GL_PROGRAM;
+			break;
+        case OI_VERTEX_ARRAY:
+			prefix = "VERTEX_ARRAY";
+			identifier = GL_VERTEX_ARRAY;
+			break;
+        case OI_QUERY:
+			prefix = "QUERY";
+			identifier = GL_QUERY;
+			break;
+        case OI_PROGRAM_PIPELINE:
+			prefix = "PROGRAM_PIPELINE";
+			identifier = GL_PROGRAM_PIPELINE;
+			break;
+        case OI_TRANSFORM_FEEDBACK:
+			prefix = "TRANSFORM_FEEDBACK";
+			identifier = GL_TRANSFORM_FEEDBACK;
+			break;
+        case OI_SAMPLER:
+			prefix = "SAMPLER";
+			identifier = GL_SAMPLER;
+			break;
+        case OI_TEXTURE:
+			prefix = "TEXTURE";
+			identifier = GL_TEXTURE;
+			break;
+        case OI_RENDERBUFFER:
+			prefix = "RENDERBUFFER";
+			identifier = GL_RENDERBUFFER;
+			break;
+        case OI_FRAMEBUFFER:
+			prefix = "FRAMEBUFFER";
+			identifier = GL_FRAMEBUFFER;
+			break;
+        }
+
+	const char *fullLabel = UtilsFormatStr("%s_%s", prefix, label);
+	GLCHECK(glObjectLabel(identifier, name, strlen(fullLabel), fullLabel));
+}
+
+void ProcessInput(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	struct Game *game = glfwGetWindowUserPointer(window);
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+		glfwSetWindowShouldClose(window, 1);	
+	}
+	else if (key == GLFW_KEY_0 && action == GLFW_PRESS) {
+		game->gbufferDebugMode = GDM_NONE;
+	}
+	else if (key == GLFW_KEY_1 && action == GLFW_PRESS) {
+		game->gbufferDebugMode = GDM_VERTEX_NORMAL;
+	}
+	else if (key == GLFW_KEY_2 && action == GLFW_PRESS) {
+		game->gbufferDebugMode = GDM_NORMAL_MAP;
+	}
+	else if (key == GLFW_KEY_3 && action == GLFW_PRESS) {
+		game->gbufferDebugMode = GDM_TANGENT;
+	}
+	else if (key == GLFW_KEY_4 && action == GLFW_PRESS) {
+		game->gbufferDebugMode = GDM_BITANGENT;
+	}
+	else if (key == GLFW_KEY_5 && action == GLFW_PRESS) {
+		game->gbufferDebugMode = GDM_ALBEDO;
+	}
+	else if (key == GLFW_KEY_6 && action == GLFW_PRESS) {
+		game->gbufferDebugMode = GDM_POSITION;
+	}
 }

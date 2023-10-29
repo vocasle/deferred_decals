@@ -549,6 +549,7 @@ Vec3D MathVec3DCross(const Vec3D* vec1, const Vec3D* vec2)
 void MathVec3DNormalize(Vec3D* vec1)
 {
 	const float norm = sqrtf(MathVec3DDot(vec1, vec1));
+	assert(norm != 0.0f);
 	vec1->X /= norm;
 	vec1->Y /= norm;
 	vec1->Z /= norm;
