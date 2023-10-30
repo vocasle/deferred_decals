@@ -27,7 +27,6 @@ void main()
 	vec3 normal = TBN * normalTS;
 	gNormal = normalize(normal);
     vec3 albedo = texture(g_albedoTex, TexCoords).rgb;
-	gAlbedoSpec = vec4(albedo, 0.0);
 
 	if (g_gbufferDebugMode == GDM_VERTEX_NORMAL) {
 		albedo = normalize(TBN[2]);
@@ -44,4 +43,6 @@ void main()
 	else if (g_gbufferDebugMode == GDM_POSITION) {
 		albedo = gPosition;
 	}
+
+	gAlbedoSpec = vec4(albedo, 0.0);
 }
