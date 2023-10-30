@@ -14,15 +14,15 @@ uniform int g_gbufferDebugMode;
 
 void main()
 {             
-    vec3 albedo = texture(g_albedo, TexCoords).rgb;
+    vec4 albedo = texture(g_albedo, TexCoords).rgba;
 	if (g_gbufferDebugMode != 0) {
-		color = vec4(albedo, 1.0);
+		color = vec4(albedo.rgb, 1.0);
 	}
 	else {
 		// retrieve data from gbuffer
 		vec3 WorldPos = texture(g_position, TexCoords).rgb;
 		vec3 Normal = texture(g_normal, TexCoords).rgb;
-		float Specular = texture(g_albedo, TexCoords).a;
+		float Specular = albedo.a;
 
 		vec3 ambient = vec3(0.1);
 		
@@ -30,14 +30,13 @@ void main()
 		vec3 l = normalize(g_lightPos - WorldPos);
 		vec3 n = normalize(Normal);
 		float NdotL = max(dot(n, l), 0.0);
-		vec3 diffuse = NdotL * lightColor * albedo;
+		vec3 diffuse = NdotL * lightColor * albedo.rgb;
 
 		vec3 v = normalize(g_cameraPos - WorldPos);
-		vec3 r = reflect(-l, n);
-		float VdotR = max(dot(v, r), 0.0);
-		float spec = pow(VdotR, 32.0);
-		float specularStrength = 1.0;
-		vec3 specular = specularStrength * spec * lightColor;
+		vec3 h = normalize(l + v);
+		float VdotR = max(dot(n, h), 0.0);
+		float spec = pow(VdotR, 16.0);
+		vec3 specular = Specular * spec * lightColor;
 
 		color = vec4(1.0);
 		color.rgb = ambient + diffuse + specular;

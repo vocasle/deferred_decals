@@ -6,6 +6,7 @@ layout (location = 2) out vec4 gAlbedoSpec;
 
 uniform sampler2D g_albedoTex;
 uniform sampler2D g_normalTex;
+uniform sampler2D g_roughnessTex;
 
 uniform int g_gbufferDebugMode;
 
@@ -44,5 +45,6 @@ void main()
 		albedo = gPosition;
 	}
 
-	gAlbedoSpec = vec4(albedo, 0.0);
+	float roughness = texture(g_roughnessTex, TexCoords).a;
+	gAlbedoSpec = vec4(albedo, roughness);
 }

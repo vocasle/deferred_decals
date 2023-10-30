@@ -89,10 +89,22 @@ struct FramebufferSize {
 	int height;
 };
 
+struct Texture2D {
+	int32_t width;
+	int32_t height;
+	char *name;
+	uint32_t handle;
+	int32_t samplerLocation;
+};
+
 struct Game {
 	struct GBuffer gbuffer;
-	struct FramebufferSize framebufferSize;;
+	struct FramebufferSize framebufferSize;
 	enum GBufferDebugMode gbufferDebugMode;
+	struct Texture2D *albedoTextures;
+	struct Texture2D *normalTextures;
+	struct Texture2D *roughnessTextures;
+	uint32_t numTextures;
 };
 
 struct File LoadShader(const char *shaderName);
@@ -131,12 +143,15 @@ void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name,
 
 void ProcessInput(GLFWwindow* window, int key, int scancode, int action, int mods);
 
+void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat,
+		int format, int type);
+
 #define GLCHECK(x) x; \
 do { \
 	GLenum err; \
 	while((err = glGetError()) != GL_NO_ERROR) \
 	{ \
-		UtilsDebugPrint("ERROR in call to OpenGL at %s:%d\n", __FILE__, __LINE__); \
+		UtilsDebugPrint("ERROR in call to OpenGL at %s:%d", __FILE__, __LINE__); \
 		raise(SIGTRAP); \
 		exit(-1); \
 	} \
@@ -202,7 +217,8 @@ int main(void)
     if (model) {
 	    for (uint32_t i = 0; i < model->NumMeshes; ++i) {
 		    const struct Mesh *mesh = model->Meshes + i;
-		    UtilsDebugPrint("Mesh %s, faces: %u, normals: %u, positions: %u, texCoords: %u\n", mesh->Name, mesh->NumFaces,
+		    UtilsDebugPrint("Mesh %s, faces: %u, normals: %u, positions: %u, texCoords: %u",
+					mesh->Name, mesh->NumFaces,
 				    mesh->NumNormals, mesh->NumPositions,
 				    mesh->NumTexCoords);
 	    }
@@ -258,7 +274,7 @@ int main(void)
 
 	struct FullscreenQuadPass fsqPass = { 0 };
 	InitQuadPass(&fsqPass);
-
+	stbi_set_flip_vertically_on_load(1);
 	const char *albedoTexturePaths[] = {
 		"assets/older-wood-flooring-bl/older-wood-flooring_albedo.png",
 		"assets/dry-rocky-ground-bl/dry-rocky-ground_albedo.png",
@@ -273,22 +289,30 @@ int main(void)
 		"assets/rusty-metal-bl/rusty-metal_normal-ogl.png"
 	};
 
-	uint32_t albedoTextureHandles[ARRAY_COUNT(albedoTexturePaths)] = { 0 };
-	uint32_t normalTextureHandles[ARRAY_COUNT(albedoTexturePaths)] = { 0 };
-	UtilsDebugPrint("Found %d albedo textures\n", ARRAY_COUNT(albedoTexturePaths));
+	const char *roughnessTexturePaths[] = {
+		"assets/older-wood-flooring-bl/older-wood-flooring_roughness.png",
+		"assets/dry-rocky-ground-bl/dry-rocky-ground_roughness.png",
+		"assets/painted-worn-asphalt-bl/painted-worn-asphalt_roughness.png",
+		"assets/rusty-metal-bl/rusty-metal_roughness.png",
+	};
+
+	game.numTextures = ARRAY_COUNT(albedoTexturePaths);
+	game.albedoTextures = malloc(sizeof *game.albedoTextures * game.numTextures);
+	memset(game.albedoTextures, 0, sizeof *game.albedoTextures * game.numTextures);
+	game.roughnessTextures = malloc(sizeof *game.roughnessTextures * game.numTextures);
+	memset(game.roughnessTextures, 0, sizeof *game.roughnessTextures * game.numTextures);
+	game.normalTextures = malloc(sizeof *game.normalTextures * game.numTextures);
+	memset(game.normalTextures, 0, sizeof *game.normalTextures * game.numTextures);
 
 	for (uint32_t i = 0; i < ARRAY_COUNT(albedoTexturePaths); ++i) {
-		albedoTextureHandles[i] = CreateTexture2D(0, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0, GL_FALSE, 
-			albedoTexturePaths[i]); 
-	}
-
-	for (uint32_t i = 0; i < ARRAY_COUNT(normalTexturesPaths); ++i) {
-		normalTextureHandles[i] = CreateTexture2D(0, 0, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE, 0, GL_FALSE, 
-			normalTexturesPaths[i]); 
+		Texture2D_Load(game.albedoTextures + i, albedoTexturePaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+		Texture2D_Load(game.normalTextures + i, normalTexturesPaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+		Texture2D_Load(game.roughnessTextures + i, roughnessTexturePaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
 	}
 
 	const int32_t C_ALBEDO_TEX_LOC = 0;
 	const int32_t C_NORMAL_TEX_LOC = 1;
+	const int32_t C_ROUGHNESS_TEX_LOC = 2;
 	
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -308,17 +332,22 @@ int main(void)
 
 			SetUniform(gbufferProgram, "g_albedoTex", sizeof(int32_t), &C_ALBEDO_TEX_LOC, UT_INT); 
 			SetUniform(gbufferProgram, "g_normalTex", sizeof(int32_t), &C_NORMAL_TEX_LOC, UT_INT); 
+			SetUniform(gbufferProgram, "g_roughnessTex", sizeof(int32_t),
+					&C_ROUGHNESS_TEX_LOC, UT_INT); 
 			SetUniform(gbufferProgram, "g_gbufferDebugMode", sizeof(int32_t),
 					&game.gbufferDebugMode, UT_INT); 
 
 			for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
 				const uint32_t texHandleIdx = i % ARRAY_COUNT(albedoTexturePaths);
-//				UtilsDebugPrint("Binding texture %u (%s) for model %u\n",
+//				UtilsDebugPrint("Binding texture %u (%s) for model %u",
 //						texHandleIdx, albedoTexturePaths[texHandleIdx], i);
 				GLCHECK(glActiveTexture(GL_TEXTURE0));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, albedoTextureHandles[texHandleIdx]));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[texHandleIdx].handle));
 				GLCHECK(glActiveTexture(GL_TEXTURE1));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, normalTextureHandles[texHandleIdx]));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[texHandleIdx].handle));
+				GLCHECK(glActiveTexture(GL_TEXTURE2));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.roughnessTextures[texHandleIdx].handle));
+
 				GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
 	//			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
 				SetUniform(gbufferProgram, "g_world", sizeof(Mat4X4), &g_world, UT_MAT4);
@@ -398,7 +427,7 @@ int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle)
 	{
 		return 0;
 	}
-	UtilsDebugPrint("Linked program %u\n", *programHandle);
+	UtilsDebugPrint("Linked program %u", *programHandle);
 	GLCHECK(glDeleteShader(vertHandle));
 	GLCHECK(glDeleteShader(fragHandle));
 	return 1;
@@ -410,7 +439,7 @@ struct File LoadShader(const char *shaderName)
 	const uint32_t len = strlen(shaderName) + strlen(RES_HOME) + 2;
 	char *absPath = malloc(len);
 	snprintf(absPath, len, "%s/%s", RES_HOME, shaderName);
-	UtilsDebugPrint("Loading %s\n", absPath);
+	UtilsDebugPrint("Loading %s", absPath);
 	FILE *f = fopen(absPath, "rb");
 	if (!f) {
 		free(absPath);
@@ -425,7 +454,7 @@ struct File LoadShader(const char *shaderName)
 	const uint64_t numRead = fread(out.contents,
 			sizeof (char), out.size, f);
 
-	UtilsDebugPrint("Read %lu bytes. Expected %lu bytes\n",
+	UtilsDebugPrint("Read %lu bytes. Expected %lu bytes",
 			numRead, out.size);
 	fclose(f);
 	free(absPath);
@@ -448,7 +477,7 @@ int CompileShader(const struct File *shader, int shaderType,
 		GLCHECK(glGetShaderiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
 		char *msg = malloc(len);
 		GLCHECK(glGetShaderInfoLog(*pHandle, len, &len, msg));
-		UtilsDebugPrint("ERROR: Failed to compile shader. %s\n", msg);
+		UtilsDebugPrint("ERROR: Failed to compile shader. %s", msg);
 		free(msg);
 	}
 
@@ -470,7 +499,7 @@ int LinkProgram(const uint32_t vs, const uint32_t fs,
 		GLCHECK(glGetProgramiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
 		char *msg = malloc(len);
 		GLCHECK(glGetProgramInfoLog(*pHandle, len, &len, msg));
-		UtilsDebugPrint("ERROR: Failed to link shaders. %s\n", msg);
+		UtilsDebugPrint("ERROR: Failed to link shaders. %s", msg);
 		free(msg);
 	}
 
@@ -523,9 +552,9 @@ void PrintModelToFile(const struct Model *m)
 
 void ValidateModelProxy(const struct ModelProxy *m)
 {
-	UtilsDebugPrint("Validating ModelProxy. Num meshes: %d\n", m->numMeshes);
+	UtilsDebugPrint("Validating ModelProxy. Num meshes: %d", m->numMeshes);
 	for (uint32_t i = 0; i < m->numMeshes; ++i) {
-		UtilsDebugPrint("Mesh %d, Num indices: %d\n", i, m->meshes[i].numIndices);
+		UtilsDebugPrint("Mesh %d, Num indices: %d", i, m->meshes[i].numIndices);
 	}
 }
 
@@ -675,7 +704,7 @@ uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
 		data = stbi_load(UtilsFormatStr("%s/%s", RES_HOME, imagePath), &w, &h,
 			&channelsInFile, STBI_rgb_alpha);
 		if (!data) {
-			UtilsDebugPrint("ERROR: Failed to load %s\n", imagePath);
+			UtilsDebugPrint("ERROR: Failed to load %s", imagePath);
 			exit(-1);
 		}
 		width = w;
@@ -749,7 +778,7 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 	GLCHECK(glDrawBuffers(3, attachments));
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		UtilsDebugPrint("ERROR: Failed to create GBuffer framebuffer\n");
+		UtilsDebugPrint("ERROR: Failed to create GBuffer framebuffer");
 		return 0;
 	}
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -897,4 +926,30 @@ void ProcessInput(GLFWwindow* window, int key, int scancode, int action, int mod
 	else if (key == GLFW_KEY_6 && action == GLFW_PRESS) {
 		game->gbufferDebugMode = GDM_POSITION;
 	}
+}
+
+void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat,
+		int format, int type)
+{
+	int channelsInFile = 0;
+	uint8_t *data = stbi_load(UtilsFormatStr("%s/%s", RES_HOME, texPath), &t->width, &t->height,
+		&channelsInFile, STBI_rgb_alpha);
+	if (!data) {
+		UtilsDebugPrint("ERROR: Failed to load %s", texPath);
+		exit(-1);
+	}
+
+	const int loc = UtilStrFindLastChar(texPath, '/');
+	t->name = strdup(texPath + loc + 1);
+
+	UtilsDebugPrint("Loaded %s: %dx%d, channels: %d", t->name, t->width, t->height,
+			channelsInFile);
+
+	glGenTextures(1, &t->handle);
+	glBindTexture(GL_TEXTURE_2D, t->handle);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, t->width, t->height, 0, format, type, data);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	SetObjectName(OI_TEXTURE, t->handle, t->name);
+	stbi_image_free(data);
 }
