@@ -290,10 +290,10 @@ int main(void)
 	};
 
 	const char *roughnessTexturePaths[] = {
-		"assets/older-wood-flooring-bl/older-wood-flooring_roughness.png",
-		"assets/dry-rocky-ground-bl/dry-rocky-ground_roughness.png",
-		"assets/painted-worn-asphalt-bl/painted-worn-asphalt_roughness.png",
-		"assets/rusty-metal-bl/rusty-metal_roughness.png",
+		"assets/older-wood-flooring-bl/older-wood-flooring_specular.png",
+		"assets/dry-rocky-ground-bl/dry-rocky-ground_specular.png",
+		"assets/painted-worn-asphalt-bl/painted-worn-asphalt_specular.png",
+		"assets/rusty-metal-bl/rusty-metal_specular.png",
 	};
 
 	game.numTextures = ARRAY_COUNT(albedoTexturePaths);
@@ -715,8 +715,10 @@ uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
 	glGenTextures(1, &handle);
 	glBindTexture(GL_TEXTURE_2D, handle);
 	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, data);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	if (genFB) {
 		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, handle, 0);
 	}
@@ -948,8 +950,11 @@ void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat
 	glGenTextures(1, &t->handle);
 	glBindTexture(GL_TEXTURE_2D, t->handle);
 	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, t->width, t->height, 0, format, type, data);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	SetObjectName(OI_TEXTURE, t->handle, t->name);
 	stbi_image_free(data);
 }
