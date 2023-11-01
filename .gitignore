@@ -5,6 +5,7 @@
 *.o
 *.ko
 *.obj
+!res/assets/*.obj
 *.elf
 
 # Linker output
