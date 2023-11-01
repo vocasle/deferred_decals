@@ -24,10 +24,11 @@ in mat3 TBN;
 void main()
 {
 	gPosition = WorldPos;
-    vec3 normalTS = texture(g_normalTex, TexCoords).xyz * 2.0 - 1.0;
+	vec2 uv = TexCoords * 8.0;
+    vec3 normalTS = texture(g_normalTex, uv).xyz * 2.0 - 1.0;
 	vec3 normal = TBN * normalTS;
 	gNormal = normalize(normal);
-    vec3 albedo = texture(g_albedoTex, TexCoords).rgb;
+    vec3 albedo = texture(g_albedoTex, uv).rgb;
 
 	if (g_gbufferDebugMode == GDM_VERTEX_NORMAL) {
 		albedo = normalize(TBN[2]);
@@ -45,6 +46,6 @@ void main()
 		albedo = gPosition;
 	}
 
-	float roughness = texture(g_roughnessTex, TexCoords).a;
+	float roughness = texture(g_roughnessTex, uv).a;
 	gAlbedoSpec = vec4(albedo, roughness);
 }

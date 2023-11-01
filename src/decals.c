@@ -113,7 +113,7 @@ int CompileShader(const struct File *shader, int shaderType,
 		uint32_t *pHandle);
 void OnFramebufferResize(GLFWwindow *window, int width, int height);
 
-struct Model *LoadModel(const char *filename);
+struct ModelProxy *LoadModel(const char *filename);
 struct ModelProxy *CreateModelProxy(const struct Model *m);
 
 void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const void *data, enum UniformType type);
@@ -171,7 +171,9 @@ MessageCallback(GLenum source,
   fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
            (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
             type, severity, message);
-  exit(-1);
+  if (type == GL_DEBUG_TYPE_ERROR) {
+	  exit(-1);
+  }
 }
 
 int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight);
@@ -213,22 +215,13 @@ int main(void)
 
     glfwSetFramebufferSizeCallback(window, OnFramebufferResize); 
 
-    struct Model *model = LoadModel("assets/room.obj");
-    if (model) {
-	    for (uint32_t i = 0; i < model->NumMeshes; ++i) {
-		    const struct Mesh *mesh = model->Meshes + i;
-		    UtilsDebugPrint("Mesh %s, faces: %u, normals: %u, positions: %u, texCoords: %u",
-					mesh->Name, mesh->NumFaces,
-				    mesh->NumNormals, mesh->NumPositions,
-				    mesh->NumTexCoords);
-	    }
-    }
+    struct ModelProxy *modelProxy = LoadModel("assets/room.obj");
 
-//	uint32_t programHandle = 0;
-//	if (!CreateProgram("shaders/frag.glsl", "shaders/vert.glsl", &programHandle)) {
-//		UtilsFatalError("ERROR: Failed to create program\n");
-//		return -1;
-//	}
+	uint32_t phongProgram = 0;
+	if (!CreateProgram("shaders/deferred_decal.glsl", "shaders/vert.glsl", &phongProgram)) {
+		UtilsFatalError("ERROR: Failed to create program\n");
+		return -1;
+	}
 
 	uint32_t gbufferProgram = 0;
 	if (!CreateProgram("shaders/gbuffer_frag.glsl", "shaders/vert.glsl", &gbufferProgram)) {
@@ -249,7 +242,17 @@ int main(void)
 	glEnable(GL_DEBUG_OUTPUT);
 	glDebugMessageCallback(MessageCallback, 0);
 
-	struct ModelProxy *modelProxy = CreateModelProxy(model);
+	struct ModelProxy *unitCube = LoadModel("assets/unit_cube.obj");
+	{
+		const Vec3D unitCubeOffset = { 0.0f, 2.0f, 0.0f };
+		const Vec3D unitCubeScale = { 2.0f, 2.0f, 2.0f };
+		Mat4X4 scale = MathMat4X4ScaleFromVec3D(&unitCubeScale);
+		Mat4X4 world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
+		world.A[2][2] = -world.A[2][2];
+		Mat4X4 rotY90 = MathMat4X4RotateY(MathToRadians(90.0f));
+		world = MathMat4X4MultMat4X4ByMat4X4(&world, &rotY90);
+		unitCube->meshes[0].world = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
+	}
 
 	const Vec3D origin = { 0 };
 	const Vec3D up = { .Y = 1.0f }; 
@@ -354,6 +357,22 @@ int main(void)
 				GLCHECK(glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
 					NULL));
 			}
+
+			// Decal pass
+			{
+				for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {
+					GLCHECK(glUseProgram(phongProgram));
+					SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
+					SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
+					SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+					SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+					SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &unitCube->meshes[i].world,
+							UT_MAT4);
+					GLCHECK(glBindVertexArray(unitCube->meshes[i].vao));
+					GLCHECK(glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
+				}
+			}
+
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 		}
 
@@ -517,11 +536,24 @@ void OnFramebufferResize(GLFWwindow *window, int width,
 	InitGBuffer(&game->gbuffer, width, height);
 }
 
-struct Model *LoadModel(const char *filename)
+struct ModelProxy *LoadModel(const char *filename)
 {
 	const char *absPath = UtilsFormatStr("%s/%s", RES_HOME, filename);
 	struct Model* model = OLLoad(absPath);
-	return model;
+	struct ModelProxy *proxy = NULL;
+    if (model) {
+	    for (uint32_t i = 0; i < model->NumMeshes; ++i) {
+		    const struct Mesh *mesh = model->Meshes + i;
+		    UtilsDebugPrint("Mesh %s, faces: %u, normals: %u, positions: %u, texCoords: %u",
+					mesh->Name, mesh->NumFaces,
+				    mesh->NumNormals, mesh->NumPositions,
+				    mesh->NumTexCoords);
+	    }
+
+		proxy = CreateModelProxy(model);
+		ModelFree(model);
+    }
+	return proxy;
 }
 
 void PrintModelToFile(const struct Model *m)
@@ -591,6 +623,9 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 			const uint32_t posIdx = m->Meshes[i].Faces[j].posIdx - posIdxOffset;
 			const uint32_t normIdx = m->Meshes[i].Faces[j].normIdx - normIdxOffset;
 			const uint32_t texIdx = m->Meshes[i].Faces[j].texIdx - texIdxOffset;
+			assert(posIdx < m->Meshes[i].NumPositions);
+			assert(normIdx < m->Meshes[i].NumNormals);
+			assert(texIdx < m->Meshes[i].NumTexCoords);
 			vertices[j].position = *(Vec3D*)&m->Meshes[i].Positions[posIdx];
 			vertices[j].normal = *(Vec3D*)&m->Meshes[i].Normals[normIdx];
 			vertices[j].texCoords = *(Vec2D*)&m->Meshes[i].TexCoords[texIdx];
