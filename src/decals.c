@@ -97,6 +97,14 @@ struct Texture2D {
 	int32_t samplerLocation;
 };
 
+struct Camera {
+	Mat4X4 view;
+	Mat4X4 proj;
+	Vec3D position;
+	Vec3D right;
+	Vec3D front;
+};
+
 struct Game {
 	struct GBuffer gbuffer;
 	struct FramebufferSize framebufferSize;
@@ -105,6 +113,7 @@ struct Game {
 	struct Texture2D *normalTextures;
 	struct Texture2D *roughnessTextures;
 	uint32_t numTextures;
+	struct Camera camera;
 };
 
 struct File LoadShader(const char *shaderName);
@@ -145,6 +154,9 @@ void ProcessInput(GLFWwindow* window, int key, int scancode, int action, int mod
 
 void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat,
 		int format, int type);
+
+void Camera_Init(struct Camera *camera, const Vec3D *position,
+		float fov, float aspectRatio, float zNear, float zFar);
 
 #define GLCHECK(x) x; \
 do { \
@@ -244,8 +256,8 @@ int main(void)
 
 	struct ModelProxy *unitCube = LoadModel("assets/unit_cube.obj");
 	{
-		const Vec3D unitCubeOffset = { 0.0f, 2.0f, 0.0f };
-		const Vec3D unitCubeScale = { 2.0f, 2.0f, 2.0f };
+		const Vec3D unitCubeOffset = { 2.0f, 2.0f, 0.0f };
+		const Vec3D unitCubeScale = { 4.0f, 4.0f, 4.0f };
 		Mat4X4 scale = MathMat4X4ScaleFromVec3D(&unitCubeScale);
 		Mat4X4 world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
 		world.A[2][2] = -world.A[2][2];
@@ -254,22 +266,19 @@ int main(void)
 		unitCube->meshes[0].world = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
 	}
 
-	const Vec3D origin = { 0 };
-	const Vec3D up = { .Y = 1.0f }; 
-	const Vec3D eyePos = { .Y = 15.0f, .Z = -30.0f };
+	const Vec3D eyePos = { .Y = 15.0f, .Z = 30.0f };
 	const float zNear = 0.1f;
 	const float zFar = 1000.0f;
-	Mat4X4 g_view = MathMat4X4ViewAt(&eyePos, &origin, &up);
-	Mat4X4 g_proj = MathMat4X4PerspectiveFov(MathToRadians(90.0f),
+
+
+	Camera_Init(&game.camera, &eyePos, MathToRadians(90.0f),
 			(float)game.framebufferSize.width / (float)game.framebufferSize.height,
 			zNear, zFar);
 
-
-//	Mat4X4 g_world = MathMat4X4RotateY(MathToRadians(90.0f));
 	Mat4X4 g_world = MathMat4X4Identity();
-	g_world.A[2][2] = -g_world.A[2][2];
-	Mat4X4 rotY90 = MathMat4X4RotateY(MathToRadians(90.0f));
-	g_world = MathMat4X4MultMat4X4ByMat4X4(&g_world, &rotY90);
+//	g_world.A[2][2] = -g_world.A[2][2];
+//	Mat4X4 rotY90 = MathMat4X4RotateY(MathToRadians(90.0f));
+//	g_world = MathMat4X4MultMat4X4ByMat4X4(&g_world, &rotY90);
 	const float radius = 35.0f;
 	Vec3D g_lightPos = { 0.0, 50.0, -20.0 };
 
@@ -327,8 +336,8 @@ int main(void)
 			GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 			GLCHECK(glUseProgram(gbufferProgram));
 
-			SetUniform(gbufferProgram, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
-			SetUniform(gbufferProgram, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
+			SetUniform(gbufferProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
+			SetUniform(gbufferProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
 			RotateLight(&g_lightPos, radius);
 			SetUniform(gbufferProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			SetUniform(gbufferProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
@@ -360,10 +369,13 @@ int main(void)
 
 			// Decal pass
 			{
+				// TODO: Set depth func to GL_LESS, set depth to read only
+				// TODO: Reconstruct world position from depth
+				// TODO: Need to copy depth buffer
 				for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {
 					GLCHECK(glUseProgram(phongProgram));
-					SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
-					SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
+					SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
+					SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
 					SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 					SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 					SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &unitCube->meshes[i].world,
@@ -992,4 +1004,18 @@ void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	SetObjectName(OI_TEXTURE, t->handle, t->name);
 	stbi_image_free(data);
+}
+
+void Camera_Init(struct Camera *camera, const Vec3D *position,
+		float fov, float aspectRatio, float zNear, float zFar)
+{
+	const Vec3D front = { 0.0f, 0.0f, -1.0f };
+	const Vec3D up = { 0.0f, 1.0f, 0.0f };
+	const Vec3D right = MathVec3DCross(&up, &front);
+	camera->position = *position;
+	camera->front = front;
+	camera->right = right;
+	camera->proj = MathMat4X4PerspectiveFov(fov, aspectRatio, zNear, zFar);
+	const Vec3D focusPos = MathVec3DAddition(&camera->position, &front);
+	camera->view = MathMat4X4ViewAt(&camera->position, &focusPos, &up);
 }
