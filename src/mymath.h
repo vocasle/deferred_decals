@@ -173,6 +173,8 @@ Mat4X4 MathMat4X4RotateY(float angle);
 
 Mat4X4 MathMat4X4PerspectiveFov(float fovAngleY, float aspectRatio, float nearZ, float farZ);
 
+Mat4X4 MathMat4X4Inverse(const Mat4X4* mat);
+
 // *** misc math helpers ***
 float MathClamp(float min, float max, float v);
 
