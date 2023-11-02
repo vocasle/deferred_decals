@@ -991,6 +991,22 @@ void ProcessInput(GLFWwindow* window)
 		const Vec3D offset = { 0.0f, -0.1f, 0.0f };
 		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
 	}
+	else if (IsKeyPressed(window, GLFW_KEY_W)) {
+		const Vec3D offset = { 0.0f, 0.0f, -0.1f };
+		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
+	}
+	else if (IsKeyPressed(window, GLFW_KEY_S)) {
+		const Vec3D offset = { 0.0f, 0.0f, 0.1f };
+		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
+	}
+	else if (IsKeyPressed(window, GLFW_KEY_A)) {
+		const Vec3D offset = { 0.1f, 0.0f, 0.0f };
+		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
+	}
+	else if (IsKeyPressed(window, GLFW_KEY_D)) {
+		const Vec3D offset = { -0.1f, 0.0f, 0.0f };
+		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
+	}
 }
 
 void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat,
