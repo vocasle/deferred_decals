@@ -256,7 +256,7 @@ int main(void)
 
 	struct ModelProxy *unitCube = LoadModel("assets/unit_cube.obj");
 	{
-		const Vec3D unitCubeOffset = { 2.0f, 2.0f, 0.0f };
+		const Vec3D unitCubeOffset = { 0.0f, 0.0f, 0.0f };
 		const Vec3D unitCubeScale = { 4.0f, 4.0f, 4.0f };
 		Mat4X4 scale = MathMat4X4ScaleFromVec3D(&unitCubeScale);
 		Mat4X4 world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
@@ -276,9 +276,9 @@ int main(void)
 			zNear, zFar);
 
 	Mat4X4 g_world = MathMat4X4Identity();
-//	g_world.A[2][2] = -g_world.A[2][2];
-//	Mat4X4 rotY90 = MathMat4X4RotateY(MathToRadians(90.0f));
-//	g_world = MathMat4X4MultMat4X4ByMat4X4(&g_world, &rotY90);
+	g_world.A[2][2] = -g_world.A[2][2];
+	Mat4X4 rotY90 = MathMat4X4RotateY(MathToRadians(-90.0f));
+	g_world = MathMat4X4MultMat4X4ByMat4X4(&g_world, &rotY90);
 	const float radius = 35.0f;
 	Vec3D g_lightPos = { 0.0, 50.0, -20.0 };
 
