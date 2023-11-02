@@ -150,13 +150,15 @@ void CalculateTangentArray(struct CalculateTangetData *data);
 void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name,
 		const char *label);
 
-void ProcessInput(GLFWwindow* window, int key, int scancode, int action, int mods);
+void ProcessInput(GLFWwindow* window);
 
 void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat,
 		int format, int type);
 
 void Camera_Init(struct Camera *camera, const Vec3D *position,
 		float fov, float aspectRatio, float zNear, float zFar);
+
+void Game_Update(struct Game *game);
 
 #define GLCHECK(x) x; \
 do { \
@@ -214,8 +216,6 @@ int main(void)
 	glfwGetFramebufferSize(window, &game.framebufferSize.width,
 			&game.framebufferSize.height);
 	glfwSetWindowUserPointer(window, &game);
-
-	glfwSetKeyCallback(window, ProcessInput);
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
@@ -329,6 +329,8 @@ int main(void)
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
+		ProcessInput(window);
+		Game_Update(&game);
 		// GBuffer Pass
 		// bind GBuffer and draw geometry to GBuffer
 		{
@@ -948,32 +950,46 @@ void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name, const 
 	GLCHECK(glObjectLabel(identifier, name, strlen(fullLabel), fullLabel));
 }
 
-void ProcessInput(GLFWwindow* window, int key, int scancode, int action, int mods)
+int IsKeyPressed(GLFWwindow *window, int key)
+{
+	const int state = glfwGetKey(window, key);
+	return state == GLFW_PRESS || state == GLFW_REPEAT;
+}
+
+void ProcessInput(GLFWwindow* window)
 {
 	struct Game *game = glfwGetWindowUserPointer(window);
-	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+	if (IsKeyPressed(window, GLFW_KEY_ESCAPE)) {
 		glfwSetWindowShouldClose(window, 1);	
 	}
-	else if (key == GLFW_KEY_0 && action == GLFW_PRESS) {
+	else if (IsKeyPressed(window, GLFW_KEY_0)) {
 		game->gbufferDebugMode = GDM_NONE;
 	}
-	else if (key == GLFW_KEY_1 && action == GLFW_PRESS) {
+	else if (IsKeyPressed(window, GLFW_KEY_1)) {
 		game->gbufferDebugMode = GDM_VERTEX_NORMAL;
 	}
-	else if (key == GLFW_KEY_2 && action == GLFW_PRESS) {
+	else if (IsKeyPressed(window, GLFW_KEY_2)) {
 		game->gbufferDebugMode = GDM_NORMAL_MAP;
 	}
-	else if (key == GLFW_KEY_3 && action == GLFW_PRESS) {
+	else if (IsKeyPressed(window, GLFW_KEY_3)) {
 		game->gbufferDebugMode = GDM_TANGENT;
 	}
-	else if (key == GLFW_KEY_4 && action == GLFW_PRESS) {
+	else if (IsKeyPressed(window, GLFW_KEY_4)) {
 		game->gbufferDebugMode = GDM_BITANGENT;
 	}
-	else if (key == GLFW_KEY_5 && action == GLFW_PRESS) {
+	else if (IsKeyPressed(window,GLFW_KEY_5)) {
 		game->gbufferDebugMode = GDM_ALBEDO;
 	}
-	else if (key == GLFW_KEY_6 && action == GLFW_PRESS) {
+	else if (IsKeyPressed(window, GLFW_KEY_6)) {
 		game->gbufferDebugMode = GDM_POSITION;
+	}
+	else if (IsKeyPressed(window, GLFW_KEY_R)) {
+		const Vec3D offset = { 0.0f, 0.1f, 0.0f };
+		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
+	}
+	else if (IsKeyPressed(window, GLFW_KEY_F)) {
+		const Vec3D offset = { 0.0f, -0.1f, 0.0f };
+		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
 	}
 }
 
@@ -1018,4 +1034,12 @@ void Camera_Init(struct Camera *camera, const Vec3D *position,
 	camera->proj = MathMat4X4PerspectiveFov(fov, aspectRatio, zNear, zFar);
 	const Vec3D focusPos = MathVec3DAddition(&camera->position, &front);
 	camera->view = MathMat4X4ViewAt(&camera->position, &focusPos, &up);
+}
+
+void Game_Update(struct Game *game)
+{
+	const double dt = GetDeltaTime();
+	const Vec3D focusPos = MathVec3DAddition(&game->camera.position, &game->camera.front);
+	const Vec3D up = { 0.0f, 1.0f, 0.0f };
+	game->camera.view = MathMat4X4ViewAt(&game->camera.position, &focusPos, &up);
 }
