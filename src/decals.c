@@ -77,6 +77,7 @@ struct GBuffer {
 	uint32_t albedo;
 	uint32_t framebuffer;
 	uint32_t depthBuffer;
+	uint32_t gbufferDepthTex;
 };
 
 struct FullscreenQuadPass {
@@ -325,6 +326,7 @@ int main(void)
 	const int32_t C_ALBEDO_TEX_LOC = 0;
 	const int32_t C_NORMAL_TEX_LOC = 1;
 	const int32_t C_ROUGHNESS_TEX_LOC = 2;
+	const int32_t C_DEPTH_TEX_LOC = 0;
 	
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -371,13 +373,28 @@ int main(void)
 
 			// Decal pass
 			{
+				// Set read only depth
+				glDepthFunc(GL_GREATER);
+				glDepthMask(GL_FALSE);			
+				// Copy gbuffer depth
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
+				GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 
+						game.framebufferSize.width, game.framebufferSize.height));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
 				// TODO: Set depth func to GL_LESS, set depth to read only
 				// TODO: Reconstruct world position from depth
 				// TODO: Need to copy depth buffer
 				for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {
 					GLCHECK(glUseProgram(phongProgram));
+					GLCHECK(glActiveTexture(GL_TEXTURE0));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
+					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.proj, &game.camera.view);
+					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
+
+					SetUniform(phongProgram, "g_depth", sizeof(int32_t), &C_DEPTH_TEX_LOC, UT_INT);
 					SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
 					SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
+					SetUniform(phongProgram, "g_invViewProj", sizeof(Mat4X4), &invViewProj, UT_MAT4);
 					SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 					SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 					SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &unitCube->meshes[i].world,
@@ -385,6 +402,9 @@ int main(void)
 					GLCHECK(glBindVertexArray(unitCube->meshes[i].vao));
 					GLCHECK(glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
 				}
+				// Reset state
+				glDepthFunc(GL_LESS);
+				glDepthMask(GL_TRUE);
 			}
 
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
@@ -833,6 +853,10 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 		return 0;
 	}
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	gbuffer->gbufferDepthTex = CreateTexture2D(fbWidth,
+			fbHeight, GL_DEPTH_COMPONENT,
+			GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0, 0, NULL);
 	return 1;
 }
 

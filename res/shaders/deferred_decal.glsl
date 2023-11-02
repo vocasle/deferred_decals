@@ -7,7 +7,8 @@ layout (location = 2) out vec4 gAlbedoSpec;
 //uniform sampler2D g_albedoTex;
 //uniform sampler2D g_normalTex;
 //uniform sampler2D g_roughnessTex;
-
+uniform sampler2D g_depth;
+uniform mat4 g_invViewProj;
 //uniform int g_gbufferDebugMode;
 
 //#define GDM_VERTEX_NORMAL 1
