@@ -78,6 +78,7 @@ struct GBuffer {
 	uint32_t framebuffer;
 	uint32_t depthBuffer;
 	uint32_t gbufferDepthTex;
+	uint32_t decalDebugDepth;
 };
 
 struct FullscreenQuadPass {
@@ -387,10 +388,13 @@ int main(void)
 					GLCHECK(glUseProgram(phongProgram));
 					GLCHECK(glActiveTexture(GL_TEXTURE0));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
-					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.proj, &game.camera.view);
+					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.view, &game.camera.proj);
 					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
 					const Mat4X4 invWorld = MathMat4X4Inverse(&unitCube->meshes[i].world);
 
+					const Vec4D rtSize = { game.framebufferSize.width, game.framebufferSize.height,
+						1.0f / game.framebufferSize.width, 1.0f / game.framebufferSize.height };
+					SetUniform(phongProgram, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
 					SetUniform(phongProgram, "g_depth", sizeof(int32_t), &C_DEPTH_TEX_LOC, UT_INT);
 					SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
 					SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
@@ -726,6 +730,7 @@ void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const v
 			GLCHECK(glUniformMatrix4fv(loc, 1, GL_FALSE, data));
 			break;
         case UT_VEC4F:
+			GLCHECK(glUniform4fv(loc, 1, data));
 			break;
         case UT_VEC3F:
 			GLCHECK(glUniform3fv(loc, 1, data));
@@ -845,10 +850,12 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 		GL_COLOR_ATTACHMENT1, GL_TRUE, NULL);
 	gbuffer->albedo = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE,
 		GL_COLOR_ATTACHMENT2, GL_TRUE, NULL);
+	gbuffer->decalDebugDepth = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F,
+			GL_RGBA, GL_FLOAT, GL_COLOR_ATTACHMENT4, GL_TRUE, NULL);
 
-	const uint32_t attachments[3] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
-		GL_COLOR_ATTACHMENT2 };
-	GLCHECK(glDrawBuffers(3, attachments));
+	const uint32_t attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
+		GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT4 };
+	GLCHECK(glDrawBuffers(ARRAY_COUNT(attachments), attachments));
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		UtilsDebugPrint("ERROR: Failed to create GBuffer framebuffer");
@@ -859,6 +866,8 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 	gbuffer->gbufferDepthTex = CreateTexture2D(fbWidth,
 			fbHeight, GL_DEPTH_COMPONENT,
 			GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0, 0, NULL);
+
+
 	return 1;
 }
 
