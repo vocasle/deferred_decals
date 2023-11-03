@@ -262,8 +262,6 @@ int main(void)
 		Mat4X4 scale = MathMat4X4ScaleFromVec3D(&unitCubeScale);
 		Mat4X4 world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
 		world.A[2][2] = -world.A[2][2];
-		Mat4X4 rotY90 = MathMat4X4RotateY(MathToRadians(90.0f));
-		world = MathMat4X4MultMat4X4ByMat4X4(&world, &rotY90);
 		unitCube->meshes[0].world = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
 	}
 
@@ -375,7 +373,8 @@ int main(void)
 			{
 				// Set read only depth
 				glDepthFunc(GL_GREATER);
-				glDepthMask(GL_FALSE);			
+				glDepthMask(GL_FALSE);
+				glCullFace(GL_FRONT);
 				// Copy gbuffer depth
 				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
 				GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 
@@ -390,11 +389,13 @@ int main(void)
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
 					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.proj, &game.camera.view);
 					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
+					const Mat4X4 invWorld = MathMat4X4Inverse(&unitCube->meshes[i].world);
 
 					SetUniform(phongProgram, "g_depth", sizeof(int32_t), &C_DEPTH_TEX_LOC, UT_INT);
 					SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
 					SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
 					SetUniform(phongProgram, "g_invViewProj", sizeof(Mat4X4), &invViewProj, UT_MAT4);
+					SetUniform(phongProgram, "g_decalInvWorld", sizeof(Mat4X4), &invWorld, UT_MAT4);
 					SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 					SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 					SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &unitCube->meshes[i].world,
@@ -405,6 +406,7 @@ int main(void)
 				// Reset state
 				glDepthFunc(GL_LESS);
 				glDepthMask(GL_TRUE);
+				glCullFace(GL_BACK);
 			}
 
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
@@ -1030,6 +1032,42 @@ void ProcessInput(GLFWwindow* window)
 	else if (IsKeyPressed(window, GLFW_KEY_D)) {
 		const Vec3D offset = { -0.1f, 0.0f, 0.0f };
 		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
+	}
+	else if (IsKeyPressed(window, GLFW_KEY_LEFT)) {
+		const Mat4X4 rotation = MathMat4X4RotateY(MathToRadians(1.0f));
+		Vec4D tmp = { game->camera.front.X, game->camera.front.Y,
+			game->camera.front.Z, 0.0f };
+		tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &rotation);
+		game->camera.front.X = tmp.X;
+		game->camera.front.Y = tmp.Y;
+		game->camera.front.Z = tmp.Z;
+	}
+	else if (IsKeyPressed(window, GLFW_KEY_RIGHT)) {
+		const Mat4X4 rotation = MathMat4X4RotateY(MathToRadians(-1.0f));
+		Vec4D tmp = { game->camera.front.X, game->camera.front.Y,
+			game->camera.front.Z, 0.0f };
+		tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &rotation);
+		game->camera.front.X = tmp.X;
+		game->camera.front.Y = tmp.Y;
+		game->camera.front.Z = tmp.Z;
+	}
+	else if (IsKeyPressed(window, GLFW_KEY_UP)) {
+		const Mat4X4 rotation = MathMat4X4RotateX(MathToRadians(-1.0f));
+		Vec4D tmp = { game->camera.front.X, game->camera.front.Y,
+			game->camera.front.Z, 0.0f };
+		tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &rotation);
+		game->camera.front.X = tmp.X;
+		game->camera.front.Y = tmp.Y;
+		game->camera.front.Z = tmp.Z;
+	}
+	else if (IsKeyPressed(window, GLFW_KEY_DOWN)) {
+		const Mat4X4 rotation = MathMat4X4RotateX(MathToRadians(1.0f));
+		Vec4D tmp = { game->camera.front.X, game->camera.front.Y,
+			game->camera.front.Z, 0.0f };
+		tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &rotation);
+		game->camera.front.X = tmp.X;
+		game->camera.front.Y = tmp.Y;
+		game->camera.front.Z = tmp.Z;
 	}
 }
 

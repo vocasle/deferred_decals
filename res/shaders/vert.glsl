@@ -12,6 +12,7 @@ uniform mat4 g_world;
 out vec3 WorldPos;
 out vec2 TexCoords;
 out mat3 TBN;
+out vec4 GlPosition;
 
 void main()
 {
@@ -23,4 +24,5 @@ void main()
 	T = normalize(T - dot(T, N) * N);
 	vec3 B = cross(N, T) * inTangent.w;
 	TBN = mat3(T, B, N); 
+	GlPosition = gl_Position;
 }
