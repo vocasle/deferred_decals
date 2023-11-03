@@ -3,49 +3,49 @@
 layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec4 gAlbedoSpec;
+layout (location = 3) out vec4 gDebugDepth;
 
 uniform sampler2D g_depth;
 uniform mat4 g_invViewProj;
 uniform mat4 g_decalInvWorld;
+uniform vec4 g_rtSize;
 
 in vec3 WorldPos;
 in vec2 TexCoords;
 in mat3 TBN;
-in vec4 GlPosition;
+in vec4 ClipPos;
 
-vec3 world_position_from_depth(vec2 screen_pos, float ndc_depth)
+vec3 WorldPosFromDepth(vec2 screenPos, float ndcDepth)
 {
     // Remap depth to [-1.0, 1.0] range.
-    float depth = ndc_depth * 2.0 - 1.0;
+    float depth = ndcDepth * 2.0 - 1.0;
 
     // // Create NDC position.
-    vec4 ndc_pos = vec4(screen_pos, depth, 1.0);
+    vec4 ndcPos = vec4(screenPos, depth, 1.0);
 
     // Transform back into world position.
-    vec4 world_pos = g_invViewProj * ndc_pos;
+    vec4 worldPos = g_invViewProj * ndcPos;
 
     // Undo projection.
-    world_pos = world_pos / world_pos.w;
+    worldPos = worldPos / worldPos.w;
 
-    return world_pos.xyz;
+    return worldPos.xyz;
 }
 
 void main()
 {
-	vec2 uv = TexCoords;
-    vec2 screen_pos = GlPosition.xy / GlPosition.w;
-    vec2 tex_coords = screen_pos * 0.5 + 0.5;
-
-    float depth     = texture(g_depth, tex_coords).x;
-    vec3  worldPos = world_position_from_depth(screen_pos, depth);
+	vec2 screenPos = ClipPos.xy / ClipPos.w;
+	vec2 uv = screenPos * 0.5 + 0.5;
+    float depth = texture(g_depth, uv).x;
+    vec3  worldPos = WorldPosFromDepth(screenPos, depth);
 	vec3 localPos = (g_decalInvWorld * vec4(worldPos, 1.0)).xyz;
-	vec3 ret = 0.5 - abs(localPos);
-	if (ret.x < 0 || ret.y < 0 || ret.z < 0) {
+	vec3 ret = abs(localPos);
+	if (ret.x > 0.5 || ret.y > 0.5 || ret.z > 0.5) {
 		discard;
 	}
 
 	vec3 albedo = vec3(0.0, 1.0, 1.0);
 	float roughness = 1.0;
 	gAlbedoSpec = vec4(albedo, roughness);
-
+	gDebugDepth = vec4(worldPos, depth);
 }
