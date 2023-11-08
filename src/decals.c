@@ -1019,28 +1019,24 @@ void ProcessInput(GLFWwindow* window)
 		game->gbufferDebugMode = GDM_POSITION;
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_R)) {
-		const Vec3D offset = { 0.0f, 0.1f, 0.0f };
+		const Vec3D offset = { 0.0f, 1.0f, 0.0f };
 		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_F)) {
-		const Vec3D offset = { 0.0f, -0.1f, 0.0f };
+		const Vec3D offset = { 0.0f, -1.0f, 0.0f };
 		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_W)) {
-		const Vec3D offset = { 0.0f, 0.0f, -0.1f };
-		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
+		game->camera.position = MathVec3DAddition(&game->camera.position, &game->camera.front);
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_S)) {
-		const Vec3D offset = { 0.0f, 0.0f, 0.1f };
-		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
+		game->camera.position = MathVec3DSubtraction(&game->camera.position, &game->camera.front);
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_A)) {
-		const Vec3D offset = { 0.1f, 0.0f, 0.0f };
-		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
+		game->camera.position = MathVec3DSubtraction(&game->camera.position, &game->camera.right);
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_D)) {
-		const Vec3D offset = { -0.1f, 0.0f, 0.0f };
-		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
+		game->camera.position = MathVec3DAddition(&game->camera.position, &game->camera.right);
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_LEFT)) {
 		const Mat4X4 rotation = MathMat4X4RotateY(MathToRadians(1.0f));
@@ -1050,6 +1046,8 @@ void ProcessInput(GLFWwindow* window)
 		game->camera.front.X = tmp.X;
 		game->camera.front.Y = tmp.Y;
 		game->camera.front.Z = tmp.Z;
+		const Vec3D up = { .Y = 1.0f };
+		game->camera.right = MathVec3DCross(&up, &game->camera.front);
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_RIGHT)) {
 		const Mat4X4 rotation = MathMat4X4RotateY(MathToRadians(-1.0f));
@@ -1059,6 +1057,8 @@ void ProcessInput(GLFWwindow* window)
 		game->camera.front.X = tmp.X;
 		game->camera.front.Y = tmp.Y;
 		game->camera.front.Z = tmp.Z;
+		const Vec3D up = { .Y = 1.0f };
+		game->camera.right = MathVec3DCross(&up, &game->camera.front);
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_UP)) {
 		const Mat4X4 rotation = MathMat4X4RotateX(MathToRadians(-1.0f));
@@ -1068,6 +1068,8 @@ void ProcessInput(GLFWwindow* window)
 		game->camera.front.X = tmp.X;
 		game->camera.front.Y = tmp.Y;
 		game->camera.front.Z = tmp.Z;
+		const Vec3D up = { .Y = 1.0f };
+		game->camera.right = MathVec3DCross(&up, &game->camera.front);
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_DOWN)) {
 		const Mat4X4 rotation = MathMat4X4RotateX(MathToRadians(1.0f));
@@ -1077,6 +1079,8 @@ void ProcessInput(GLFWwindow* window)
 		game->camera.front.X = tmp.X;
 		game->camera.front.Y = tmp.Y;
 		game->camera.front.Z = tmp.Z;
+		const Vec3D up = { .Y = 1.0f };
+		game->camera.right = MathVec3DCross(&up, &game->camera.front);
 	}
 }
 
