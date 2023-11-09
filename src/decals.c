@@ -297,7 +297,8 @@ int main(void)
 		"assets/older-wood-flooring-bl/older-wood-flooring_albedo.png",
 		"assets/dry-rocky-ground-bl/dry-rocky-ground_albedo.png",
 		"assets/painted-worn-asphalt-bl/painted-worn-asphalt_albedo.png",
-		"assets/rusty-metal-bl/rusty-metal_albedo.png"
+		"assets/biohazard.png",
+//		"assets/rusty-metal-bl/rusty-metal_albedo.png"
 	};
 
 	const char *normalTexturesPaths[] = {
@@ -328,10 +329,22 @@ int main(void)
 		Texture2D_Load(game.roughnessTextures + i, roughnessTexturePaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
 	}
 
+	const char *decalAlbedoTextureNames[] = {
+		"assets/decals/decals_0008_color_1k.jpg",
+		"assets/biohazard.png",
+		"assets/imperfection/imperfection_0003_color_1k.jpg"
+	};
+
+	struct Texture2D decalAlbedoTextures[ARRAY_COUNT(decalAlbedoTextureNames)] = { 0 };
+	for (uint32_t i = 0; i < ARRAY_COUNT(decalAlbedoTextureNames); ++i) {
+		Texture2D_Load(decalAlbedoTextures + i, decalAlbedoTextureNames[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+	}
+
 	const int32_t C_ALBEDO_TEX_LOC = 0;
 	const int32_t C_NORMAL_TEX_LOC = 1;
 	const int32_t C_ROUGHNESS_TEX_LOC = 2;
-	const int32_t C_DEPTH_TEX_LOC = 0;
+	const int32_t C_DECAL_DEPTH_TEX_LOC = 0;
+	const int32_t C_DECAL_ALBEDO_TEX_LOC = 1;
 	
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -383,10 +396,12 @@ int main(void)
 				glDepthMask(GL_FALSE);
 				glCullFace(GL_FRONT);
 				// Copy gbuffer depth
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
-				GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 
-						game.framebufferSize.width, game.framebufferSize.height));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
+				{
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
+					GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 
+							game.framebufferSize.width, game.framebufferSize.height));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
+				}
 				// TODO: Set depth func to GL_LESS, set depth to read only
 				// TODO: Reconstruct world position from depth
 				// TODO: Need to copy depth buffer
@@ -394,6 +409,9 @@ int main(void)
 					GLCHECK(glUseProgram(deferredDecal));
 					GLCHECK(glActiveTexture(GL_TEXTURE0));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
+					GLCHECK(glActiveTexture(GL_TEXTURE1));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, decalAlbedoTextures[1].handle));
+
 					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.view, &game.camera.proj);
 					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
 					const Mat4X4 invWorld = MathMat4X4Inverse(&unitCube->meshes[i].world);
@@ -407,7 +425,8 @@ int main(void)
 					SetUniform(deferredDecal, "g_bboxMax", sizeof(Vec3D), &bboxMax, UT_VEC3F);
 					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 					SetUniform(deferredDecal, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
-					SetUniform(deferredDecal, "g_depth", sizeof(int32_t), &C_DEPTH_TEX_LOC, UT_INT);
+					SetUniform(deferredDecal, "g_depth", sizeof(int32_t), &C_DECAL_DEPTH_TEX_LOC, UT_INT);
+					SetUniform(deferredDecal, "g_albedo", sizeof(int32_t), &C_DECAL_ALBEDO_TEX_LOC, UT_INT);
 					SetUniform(deferredDecal, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
 					SetUniform(deferredDecal, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
 					SetUniform(deferredDecal, "g_invViewProj", sizeof(Mat4X4), &invViewProj, UT_MAT4);
