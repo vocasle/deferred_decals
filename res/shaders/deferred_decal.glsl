@@ -9,11 +9,18 @@ uniform sampler2D g_depth;
 uniform mat4 g_invViewProj;
 uniform mat4 g_decalInvWorld;
 uniform vec4 g_rtSize;
+uniform vec3 g_bboxMin;
+uniform vec3 g_bboxMax;
 
 in vec3 WorldPos;
 in vec2 TexCoords;
 in mat3 TBN;
 in vec4 ClipPos;
+
+bool InBBox(vec3 pos)
+{
+	return pos.x < g_bboxMax.x && pos.y < g_bboxMax.y && pos.z < g_bboxMax.z;	
+}
 
 vec3 WorldPosFromDepth(vec2 screenPos, float ndcDepth)
 {
@@ -39,13 +46,14 @@ void main()
     float depth = texture(g_depth, uv).x;
     vec3  worldPos = WorldPosFromDepth(screenPos, depth);
 	vec3 localPos = (g_decalInvWorld * vec4(worldPos, 1.0)).xyz;
-	vec3 ret = abs(localPos);
-	if (ret.x > 0.5 || ret.y > 0.5 || ret.z > 0.5) {
+	if (!InBBox(abs(localPos))) {
+//		gAlbedoSpec = vec4(1.0, 0.0, 0.0, 1.0);
 		discard;
 	}
-
-	vec3 albedo = vec3(0.0, 1.0, 1.0);
-	float roughness = 1.0;
-	gAlbedoSpec = vec4(albedo, roughness);
-	gDebugDepth = vec4(worldPos, depth);
+	else {
+		vec3 albedo = vec3(0.0, 1.0, 0.0);
+		float roughness = 1.0;
+		gAlbedoSpec = vec4(albedo, roughness);
+		gDebugDepth = vec4(worldPos, depth);
+	}
 }
