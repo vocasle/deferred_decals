@@ -232,7 +232,13 @@ int main(void)
     struct ModelProxy *modelProxy = LoadModel("assets/room.obj");
 
 	uint32_t phongProgram = 0;
-	if (!CreateProgram("shaders/deferred_decal.glsl", "shaders/vert.glsl", &phongProgram)) {
+	if (!CreateProgram("shaders/frag.glsl", "shaders/vert.glsl", &phongProgram)) {
+		UtilsFatalError("ERROR: Failed to create program\n");
+		return -1;
+	}
+
+	uint32_t deferredDecal = 0;
+	if (!CreateProgram("shaders/deferred_decal.glsl", "shaders/vert.glsl", &deferredDecal)) {
 		UtilsFatalError("ERROR: Failed to create program\n");
 		return -1;
 	}
@@ -385,7 +391,7 @@ int main(void)
 				// TODO: Reconstruct world position from depth
 				// TODO: Need to copy depth buffer
 				for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {
-					GLCHECK(glUseProgram(phongProgram));
+					GLCHECK(glUseProgram(deferredDecal));
 					GLCHECK(glActiveTexture(GL_TEXTURE0));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
 					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.view, &game.camera.proj);
@@ -394,15 +400,15 @@ int main(void)
 
 					const Vec4D rtSize = { game.framebufferSize.width, game.framebufferSize.height,
 						1.0f / game.framebufferSize.width, 1.0f / game.framebufferSize.height };
-					SetUniform(phongProgram, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
-					SetUniform(phongProgram, "g_depth", sizeof(int32_t), &C_DEPTH_TEX_LOC, UT_INT);
-					SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
-					SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
-					SetUniform(phongProgram, "g_invViewProj", sizeof(Mat4X4), &invViewProj, UT_MAT4);
-					SetUniform(phongProgram, "g_decalInvWorld", sizeof(Mat4X4), &invWorld, UT_MAT4);
-					SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
-					SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
-					SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &unitCube->meshes[i].world,
+					SetUniform(deferredDecal, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
+					SetUniform(deferredDecal, "g_depth", sizeof(int32_t), &C_DEPTH_TEX_LOC, UT_INT);
+					SetUniform(deferredDecal, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
+					SetUniform(deferredDecal, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
+					SetUniform(deferredDecal, "g_invViewProj", sizeof(Mat4X4), &invViewProj, UT_MAT4);
+					SetUniform(deferredDecal, "g_decalInvWorld", sizeof(Mat4X4), &invWorld, UT_MAT4);
+					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+					SetUniform(deferredDecal, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+					SetUniform(deferredDecal, "g_world", sizeof(Mat4X4), &unitCube->meshes[i].world,
 							UT_MAT4);
 					GLCHECK(glBindVertexArray(unitCube->meshes[i].vao));
 					GLCHECK(glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
@@ -454,6 +460,23 @@ int main(void)
 					0, 0, game.framebufferSize.width, game.framebufferSize.height, 
 					GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		}
+
+		// Wireframe pass
+		{
+			glUseProgram(phongProgram);
+			SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
+			SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
+			SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+			SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {
+				glBindVertexArray(unitCube->meshes[i].vao);
+				SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &unitCube->meshes[i].world, UT_MAT4);
+				glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL);
+			}
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
 
         /* Swap front and back buffers */
@@ -1060,6 +1083,7 @@ void ProcessInput(GLFWwindow* window)
 		const Vec3D up = { .Y = 1.0f };
 		game->camera.right = MathVec3DCross(&up, &game->camera.front);
 	}
+	// TODO: Fix pitch, currently front follows circle, if W is pressed continuously
 	else if (IsKeyPressed(window, GLFW_KEY_UP)) {
 		const Mat4X4 rotation = MathMat4X4RotateX(MathToRadians(-1.0f));
 		Vec4D tmp = { game->camera.front.X, game->camera.front.Y,
