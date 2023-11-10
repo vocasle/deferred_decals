@@ -494,6 +494,8 @@ int main(void)
 			SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
 			SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+			static const int isWireframe = 1;
+			SetUniform(phongProgram, "g_wireframe", sizeof(int), &isWireframe, UT_INT);
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {
