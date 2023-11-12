@@ -272,6 +272,19 @@ int main(void)
 		unitCube->meshes[0].world = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
 	}
 
+	struct ModelProxy *axisModel = LoadModel("assets/axis.obj");
+	const Vec3D axisColors[3] = {
+		{ 1.0f, 0.0f, 0.0f },
+		{ 0.0f, 1.0f, 0.0f },
+		{ 0.0f, 0.0f, 1.0f }
+	};
+	Mat4X4 axisWorldTransforms[3] = { 0 };
+	{
+		axisWorldTransforms[0] = MathMat4X4RotateZ(MathToRadians(90.0f));
+		axisWorldTransforms[1] = MathMat4X4Identity();
+		axisWorldTransforms[2] = MathMat4X4RotateX(MathToRadians(90.0f));
+	}
+
 	const Vec3D eyePos = { .Y = 15.0f, .Z = 30.0f };
 	const float zNear = 0.1f;
 	const float zFar = 1000.0f;
@@ -504,6 +517,27 @@ int main(void)
 				glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL);
 			}
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		}
+
+		// Forward pass
+		// Draw world axis
+		{
+			glUseProgram(phongProgram);
+			glDisable(GL_CULL_FACE);
+			SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
+			SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
+			SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+			SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+			const int isWireframe = 0;
+			SetUniform(phongProgram, "g_wireframe", sizeof(int), &isWireframe, UT_INT);
+
+			for (uint32_t i = 0; i < 3; ++i) {
+				glBindVertexArray(axisModel->meshes[0].vao);
+				SetUniform(phongProgram, "g_color", sizeof(Vec3D), &axisColors[i], UT_VEC3F);
+				SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &axisWorldTransforms[i], UT_MAT4);
+				glDrawElements(GL_TRIANGLES, axisModel->meshes[0].numIndices, GL_UNSIGNED_INT, NULL);
+			}
+			glEnable(GL_CULL_FACE);
 		}
 
         /* Swap front and back buffers */

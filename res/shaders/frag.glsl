@@ -5,6 +5,7 @@ out vec4 color;
 uniform vec3 g_lightPos; 
 uniform vec3 g_cameraPos;
 uniform bool g_wireframe;
+uniform vec3 g_color;
 
 in vec3 WorldPos;
 in vec3 Normal;
@@ -32,5 +33,7 @@ void main()
 
 		color = vec4(1.0);
 		color.rgb = ambient + diffuse + specular;
+
+		color.rgb = g_color;
 	}
 }
