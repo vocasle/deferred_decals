@@ -266,7 +266,7 @@ int main(void)
 
 	glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
-//	glFrontFace(GL_CW);
+	glFrontFace(GL_CW);
 	glCullFace(GL_BACK);
 	glEnable(GL_DEBUG_OUTPUT);
 	glDebugMessageCallback(MessageCallback, 0);
@@ -277,7 +277,6 @@ int main(void)
 		const Vec3D unitCubeScale = { 4.0f, 4.0f, 4.0f };
 		Mat4X4 scale = MathMat4X4ScaleFromVec3D(&unitCubeScale);
 		Mat4X4 world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
-		world.A[2][2] = -world.A[2][2];
 		unitCube->meshes[0].world = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
 	}
 
@@ -304,7 +303,6 @@ int main(void)
 			zNear, zFar);
 
 	Mat4X4 g_world = MathMat4X4Identity();
-	g_world.A[2][2] = -g_world.A[2][2];
 	Mat4X4 rotY90 = MathMat4X4RotateY(MathToRadians(-90.0f));
 	g_world = MathMat4X4MultMat4X4ByMat4X4(&g_world, &rotY90);
 	const float radius = 35.0f;
@@ -902,8 +900,8 @@ void InitQuadPass(struct FullscreenQuadPass *fsqPass)
 	const float quadVertices[] = {
 		// positions        // texture Coords
 		-1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-		-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
 		 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+		-1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
 		 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
 	};
 	// setup plane VAO
