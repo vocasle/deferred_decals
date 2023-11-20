@@ -20,6 +20,13 @@ in vec2 TexCoords;
 in mat3 TBN;
 in vec4 ClipPos;
 
+vec3 UnpackNormal(vec2 uv)
+{
+	vec3 normalTS = texture(g_normal, uv).xyz * 2.0 - 1.0;
+	vec3 normal = TBN * normalTS;
+	return normalize(normal);
+}
+
 bool InBBox(vec3 pos)
 {
 	return pos.x < g_bboxMax.x && pos.y < g_bboxMax.y && pos.z < g_bboxMax.z;	
@@ -59,5 +66,6 @@ void main()
 		float roughness = 1.0;
 		gAlbedoSpec = vec4(albedo, roughness);
 		gDebugDepth = vec4(worldPos, depth);
+		gNormal = UnpackNormal(decalUV);
 	}
 }
