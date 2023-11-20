@@ -2,7 +2,9 @@
 
 #include <math.h>
 #include <assert.h>
-//#include <corecrt_math_defines.h>
+#if _WIN32
+#include <corecrt_math_defines.h>
+#endif
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -62,14 +64,14 @@ Vec4D MathVec4DFromXYZW(float x, float y, float z, float w)
 
 Mat3X3 MathMat3X3Identity()
 {
-	Mat3X3 mat = {};
+	Mat3X3 mat = { 0 };
 	mat.A00 = mat.A11 = mat.A22 = 1.0f;
 	return mat;
 }
 
 Mat3X3 MathMat3X3Addition(const Mat3X3* mat1, const Mat3X3* mat2)
 {
-	Mat3X3 res = {};
+	Mat3X3 res = { 0 };
 	MathVec3DAddition(&mat1->V[0], &mat2->V[0]);
 	MathVec3DAddition(&mat1->V[1], &mat2->V[1]);
 	MathVec3DAddition(&mat1->V[2], &mat2->V[2]);
@@ -85,7 +87,7 @@ void MathMat3X3ModulateByScalar(Mat3X3* mat, const float s)
 
 Vec3D MathMat3X3MultByVec3D(const Mat3X3* mat, const Vec3D* vec)
 {
-	Vec3D res = {};
+	Vec3D res = { 0 };
 	res.X = MathVec3DDot(&mat->V[0], vec);
 	res.Y = MathVec3DDot(&mat->V[1], vec);
 	res.Z = MathVec3DDot(&mat->V[2], vec);
@@ -94,7 +96,7 @@ Vec3D MathMat3X3MultByVec3D(const Mat3X3* mat, const Vec3D* vec)
 
 Mat3X3 MathMat3X3MultByMat3X3(const Mat3X3* mat1, const Mat3X3* mat2)
 {
-	Mat3X3 res = {};
+	Mat3X3 res = { 0 };
 
 	float x = mat1->A00;
 	float y = mat1->A01;
@@ -125,7 +127,7 @@ Mat3X3 MathMat3X3MultByMat3X3(const Mat3X3* mat1, const Mat3X3* mat2)
 
 void MathMat3X3Transpose(Mat3X3* mat)
 {
-	Mat3X3 out = {};
+	Mat3X3 out = { 0 };
 	for (unsigned char i = 0; i < 3; ++i)
 		for (unsigned char j = 0; j < 3; ++j)
 			out.A[i][j] = mat->A[j][i];
@@ -140,7 +142,7 @@ void MathMat3X3Copy(const Mat3X3* from, Mat3X3* to)
 
 Mat4X4 MathMat4X4Identity()
 {
-	Mat4X4 mat = {};
+	Mat4X4 mat = { 0 };
 	mat.A00 = mat.A11 = mat.A22 = mat.A33 = 1.0f;
 	return mat;
 }
@@ -161,7 +163,7 @@ void MathMat4X4ModulateByScalar(Mat4X4* mat, const float s)
 
 Mat4X4 MathMat4X4Addition(const Mat4X4* mat1, const Mat4X4* mat2)
 {
-	Mat4X4 res = {};
+	Mat4X4 res = { 0 };
 	res.V[0] = MathVec4DAddition(&mat1->V[0], &mat2->V[0]);
 	res.V[1] = MathVec4DAddition(&mat1->V[1], &mat2->V[1]);
 	res.V[2] = MathVec4DAddition(&mat1->V[2], &mat2->V[2]);
@@ -171,7 +173,7 @@ Mat4X4 MathMat4X4Addition(const Mat4X4* mat1, const Mat4X4* mat2)
 
 Vec4D MathMat4X4MultVec4DByMat4X4(const Vec4D* vec, const Mat4X4* mat)
 {
-	Vec4D res = {};
+	Vec4D res = { 0 };
 	res.X = vec->X * mat->A00 + vec->Y * mat->A10 + vec->Z * mat->A20 + vec->W * mat->A30;
 	res.Y = vec->X * mat->A01 + vec->Y * mat->A11 + vec->Z * mat->A21 + vec->W * mat->A31;
 	res.Z = vec->X * mat->A02 + vec->Y * mat->A12 + vec->Z * mat->A22 + vec->W * mat->A32;
@@ -181,7 +183,7 @@ Vec4D MathMat4X4MultVec4DByMat4X4(const Vec4D* vec, const Mat4X4* mat)
 
 Mat4X4 MathMat4X4MultMat4X4ByMat4X4(const Mat4X4* mat1, const Mat4X4* mat2)
 {
-	Mat4X4 res = {};
+	Mat4X4 res = { 0 };
 	float x = mat1->A00;
 	float y = mat1->A01;
 	float z = mat1->A02;
@@ -227,7 +229,7 @@ Mat4X4 MathMat4X4MultMat4X4ByMat4X4(const Mat4X4* mat1, const Mat4X4* mat2)
 
 void MathMat4X4Transpose(Mat4X4* mat)
 {
-	Mat4X4 out = {};
+	Mat4X4 out = { 0 };
 	for (unsigned char i = 0; i < 4; ++i)
 		for (unsigned char j = 0; j < 4; ++j)
 			out.A[i][j] = mat->A[j][i];
@@ -324,7 +326,7 @@ Mat4X4 MathMat4X4Orthographic(float viewWidth,
 
 Mat4X4 MathMat4X4ViewAt(const Vec3D* eyePos, const Vec3D* focusPos, const Vec3D* upDirect)
 {
-	Mat4X4 res = {};
+	Mat4X4 res = { 0 };
 	Vec3D dir = MathVec3DSubtraction(focusPos, eyePos);
 	MathVec3DNormalize(&dir);
 
@@ -389,7 +391,7 @@ Mat4X4 MathMat4X4RotateY(float angle)
 
 Mat4X4 MathMat4X4PerspectiveFov(float fovAngleY, float aspectRatio, float nearZ, float farZ)
 {
-	Mat4X4 res = {};
+	Mat4X4 res = { 0 };
 	const float projPlaneZ = 1.0f / tanf(fovAngleY / 2.0f);
 	res.A00 = 1.0f / aspectRatio * projPlaneZ;
 	res.A11 = projPlaneZ;
@@ -439,7 +441,7 @@ void MathVec3DModulateByVec3D(const Vec3D* vec1, const Vec3D* vec2, Vec3D* out)
 
 Vec3D MathVec3DModulateByScalar(const Vec3D* vec1, const float s)
 {
-	Vec3D out = {};
+	Vec3D out = { 0 };
 	out.X = vec1->X * s;
 	out.Y = vec1->Y * s;
 	out.Z = vec1->Z * s;
@@ -502,7 +504,7 @@ void MathVec2DNormalize(Vec2D* vec1)
 
 Vec3D MathVec3DAddition(const Vec3D* vec1, const Vec3D* vec2)
 {
-	Vec3D out = {};
+	Vec3D out = { 0 };
 	out.X = vec1->X + vec2->X;
 	out.Y = vec1->Y + vec2->Y;
 	out.Z = vec1->Z + vec2->Z;
@@ -511,7 +513,7 @@ Vec3D MathVec3DAddition(const Vec3D* vec1, const Vec3D* vec2)
 
 Vec3D MathVec3DSubtraction(const Vec3D* vec1, const Vec3D* vec2)
 {
-	Vec3D out = {};
+	Vec3D out = { 0 };
 	out.X = vec1->X - vec2->X;
 	out.Y = vec1->Y - vec2->Y;
 	out.Z = vec1->Z - vec2->Z;
@@ -539,7 +541,7 @@ void MathVec3DPerp(const Vec3D* vec1, const Vec3D* vec2, Vec3D* out)
 
 Vec3D MathVec3DCross(const Vec3D* vec1, const Vec3D* vec2)
 {
-	Vec3D out = {};
+	Vec3D out = { 0 };
 	out.X = vec1->Y * vec2->Z - vec1->Z * vec2->Y;
 	out.Y = vec1->Z * vec2->X - vec1->X * vec2->Z;
 	out.Z = vec1->X * vec2->Y - vec1->Y * vec2->X;
@@ -569,7 +571,7 @@ void MathVec3DPrint(const Vec3D* vec)
 
 Vec4D MathVec4DAddition(const Vec4D* vec1, const Vec4D* vec2)
 {
-	Vec4D res = {};
+	Vec4D res = { 0 };
 	res.X = vec1->X + vec2->X;
 	res.Y = vec1->Y + vec2->Y;
 	res.Z = vec1->Z + vec2->Z;
@@ -738,7 +740,7 @@ int gluInvertMatrix(const float m[], float invOut[])
 
 Mat4X4 MathMat4X4Inverse(const Mat4X4* mat)
 {
-	Mat4X4 inv = {};
+	Mat4X4 inv = { 0 };
 	gluInvertMatrix(&mat->A00, &inv.A00);
 	return inv;
 }

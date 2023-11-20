@@ -8,7 +8,7 @@ uniform bool g_wireframe;
 uniform vec3 g_color;
 
 in vec3 WorldPos;
-in vec3 Normal;
+in mat3 TBN;
 
 void main()
 {
@@ -20,7 +20,7 @@ void main()
 		
 		vec3 lightColor = vec3(1.0);
 		vec3 l = normalize(g_lightPos - WorldPos);
-		vec3 n = normalize(Normal);
+		vec3 n = normalize(TBN[2]);
 		float NdotL = max(dot(n, l), 0.0);
 		vec3 diffuse = NdotL * lightColor;
 

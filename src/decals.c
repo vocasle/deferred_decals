@@ -162,13 +162,22 @@ void Camera_Init(struct Camera *camera, const Vec3D *position,
 
 void Game_Update(struct Game *game);
 
+void DebugBreak()
+{
+#if _WIN32
+	__debugbreak();
+#else
+		raise(SIGTRAP);
+#endif
+}
+
 #define GLCHECK(x) x; \
 do { \
 	GLenum err; \
 	while((err = glGetError()) != GL_NO_ERROR) \
 	{ \
 		UtilsDebugPrint("ERROR in call to OpenGL at %s:%d", __FILE__, __LINE__); \
-		raise(SIGTRAP); \
+		DebugBreak(); \
 		exit(-1); \
 	} \
 } while (0)

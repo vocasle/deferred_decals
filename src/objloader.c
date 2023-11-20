@@ -130,6 +130,7 @@ static void OLParseMeshes(struct Mesh* meshes, uint32_t numMeshes, struct MeshIn
 	
 	while(OLReadLine(objfile, line, 128))
 	{
+		memset(prefix, 0, sizeof(prefix));
 		strncpy(prefix, line, 2);
 		if (strcmp(prefix, "o ") == 0)
 		{
