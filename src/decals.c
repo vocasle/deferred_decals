@@ -246,6 +246,12 @@ int main(void)
     glfwSetFramebufferSizeCallback(window, OnFramebufferResize);
 
     struct ModelProxy *modelProxy = LoadModel("assets/room.obj");
+	{
+		Mat4X4 rotate90 = MathMat4X4RotateY(MathToRadians(-90.0f));
+		for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
+			modelProxy->meshes[i].world = rotate90;
+		}
+	}
 
 	uint32_t phongProgram = 0;
 	if (!CreateProgram("shaders/frag.glsl", "shaders/vert.glsl", &phongProgram)) {
@@ -279,13 +285,25 @@ int main(void)
 	glDebugMessageCallback(MessageCallback, 0);
 
 	struct ModelProxy *unitCube = LoadModel("assets/unit_cube.obj");
+
+	Mat4X4 decalWorlds[2] = { 0 };
+	Mat4X4 decalInvWorlds[2] = { 0 };
 	{
-		const Vec3D unitCubeOffset = { 0.0f, 0.0f, 0.0f };
+		Vec3D unitCubeOffset = { 0.0f, 0.0f, 0.0f };
 		const Vec3D unitCubeScale = { 4.0f, 4.0f, 4.0f };
 		Mat4X4 scale = MathMat4X4ScaleFromVec3D(&unitCubeScale);
 		Mat4X4 world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
-		unitCube->meshes[0].world = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
+		decalWorlds[0] = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
+		unitCubeOffset.Z = -3.0f;
+		unitCubeOffset.Y = 2.0f;
+		
+		world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
+		decalWorlds[1] = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
+
+		decalInvWorlds[0] = MathMat4X4Inverse(&decalWorlds[0]);
+		decalInvWorlds[1] = MathMat4X4Inverse(&decalWorlds[1]);
 	}
+	
 
 	struct ModelProxy *axisModel = LoadModel("assets/axis.obj");
 	const Vec3D axisColors[3] = {
@@ -309,9 +327,6 @@ int main(void)
 			(float)game.framebufferSize.width / (float)game.framebufferSize.height,
 			zNear, zFar);
 
-	Mat4X4 g_world = MathMat4X4Identity();
-	Mat4X4 rotY90 = MathMat4X4RotateY(MathToRadians(-90.0f));
-	g_world = MathMat4X4MultMat4X4ByMat4X4(&g_world, &rotY90);
 	const float radius = 35.0f;
 	Vec3D g_lightPos = { 0.0, 50.0, -20.0 };
 
@@ -438,7 +453,6 @@ int main(void)
 
 					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.view, &game.camera.proj);
 					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
-					const Mat4X4 invWorld = MathMat4X4Inverse(&unitCube->meshes[i].world);
 
 					const Vec4D rtSize = { game.framebufferSize.width, game.framebufferSize.height,
 						1.0f / game.framebufferSize.width, 1.0f / game.framebufferSize.height };
@@ -458,13 +472,15 @@ int main(void)
 					SetUniform(deferredDecal, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
 					SetUniform(deferredDecal, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
 					SetUniform(deferredDecal, "g_invViewProj", sizeof(Mat4X4), &invViewProj, UT_MAT4);
-					SetUniform(deferredDecal, "g_decalInvWorld", sizeof(Mat4X4), &invWorld, UT_MAT4);
 					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 					SetUniform(deferredDecal, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
-					SetUniform(deferredDecal, "g_world", sizeof(Mat4X4), &unitCube->meshes[i].world,
-							UT_MAT4);
 					GLCHECK(glBindVertexArray(unitCube->meshes[i].vao));
-					GLCHECK(glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
+					for (uint32_t n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
+						SetUniform(deferredDecal, "g_world", sizeof(Mat4X4), &decalWorlds[n], UT_MAT4);
+						SetUniform(deferredDecal, "g_decalInvWorld", sizeof(Mat4X4), &decalInvWorlds[n], UT_MAT4);
+
+						GLCHECK(glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
+					}
 				}
 				// Reset state
 				glDepthFunc(GL_LESS);
@@ -525,16 +541,18 @@ int main(void)
 			static const int isWireframe = 1;
 			SetUniform(phongProgram, "g_wireframe", sizeof(int), &isWireframe, UT_INT);
 
-			glDisable(GL_CULL_FACE);
-			glDisable(GL_DEPTH_TEST);
+			//glDisable(GL_CULL_FACE);
+			//glDisable(GL_DEPTH_TEST);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {
 				glBindVertexArray(unitCube->meshes[i].vao);
-				SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &unitCube->meshes[i].world, UT_MAT4);
-				glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL);
+				for (uint32_t n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
+					SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &decalWorlds[n], UT_MAT4);
+					glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL);
+				}
 			}
-			glEnable(GL_CULL_FACE);
-			glEnable(GL_DEPTH_TEST);
+			//glEnable(GL_CULL_FACE);
+			//glEnable(GL_DEPTH_TEST);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
 
