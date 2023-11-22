@@ -3,6 +3,9 @@
 layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec4 gAlbedoSpec;
+layout (location = 3) out vec3 gTBN_Tangent;
+layout (location = 4) out vec3 gTBN_Bitangent;
+layout (location = 5) out vec3 gTBN_Normal;
 
 uniform sampler2D g_albedoTex;
 uniform sampler2D g_normalTex;
@@ -29,6 +32,9 @@ void main()
 	vec3 normal = TBN * normalTS;
 	gNormal = normalize(normal);
     vec3 albedo = texture(g_albedoTex, uv).rgb;
+	gTBN_Tangent = normalize(TBN[0]);
+	gTBN_Bitangent = normalize(TBN[1]);
+	gTBN_Normal = normalize(TBN[2]);
 
 	if (g_gbufferDebugMode == GDM_VERTEX_NORMAL) {
 		albedo = normalize(TBN[2]);

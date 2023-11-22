@@ -12,6 +12,11 @@
 #include "objloader.h"
 #include "mymath.h"
 
+#if _WIN32
+	__declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
+	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+#endif
+
 struct File {
 	char *contents;
 	uint64_t size;
@@ -78,7 +83,9 @@ struct GBuffer {
 	uint32_t framebuffer;
 	uint32_t depthBuffer;
 	uint32_t gbufferDepthTex;
-	uint32_t decalDebugDepth;
+	uint32_t tbn_tangent;
+	uint32_t tbn_bitangent;
+	uint32_t tbn_normal;
 };
 
 struct FullscreenQuadPass {
@@ -236,7 +243,7 @@ int main(void)
 	    return -1;
 	}
 
-    glfwSetFramebufferSizeCallback(window, OnFramebufferResize); 
+    glfwSetFramebufferSizeCallback(window, OnFramebufferResize);
 
     struct ModelProxy *modelProxy = LoadModel("assets/room.obj");
 
@@ -315,22 +322,16 @@ int main(void)
 	stbi_set_flip_vertically_on_load(1);
 	const char *albedoTexturePaths[] = {
 		"assets/older-wood-flooring-bl/older-wood-flooring_albedo.png",
-		"assets/dry-rocky-ground-bl/dry-rocky-ground_albedo.png",
-		"assets/painted-worn-asphalt-bl/painted-worn-asphalt_albedo.png",
 		"assets/rusty-metal-bl/rusty-metal_albedo.png"
 	};
 
 	const char *normalTexturesPaths[] = {
 		"assets/older-wood-flooring-bl/older-wood-flooring_normal-ogl.png",
-		"assets/dry-rocky-ground-bl/dry-rocky-ground_normal-ogl.png",
-		"assets/painted-worn-asphalt-bl/painted-worn-asphalt_normal-ogl.png",
 		"assets/rusty-metal-bl/rusty-metal_normal-ogl.png"
 	};
 
 	const char *roughnessTexturePaths[] = {
 		"assets/older-wood-flooring-bl/older-wood-flooring_specular.png",
-		"assets/dry-rocky-ground-bl/dry-rocky-ground_specular.png",
-		"assets/painted-worn-asphalt-bl/painted-worn-asphalt_specular.png",
 		"assets/rusty-metal-bl/rusty-metal_specular.png",
 	};
 
@@ -354,6 +355,16 @@ int main(void)
 	const int32_t C_DECAL_DEPTH_TEX_LOC = 0;
 	const int32_t C_DECAL_ALBEDO_TEX_LOC = 1;
 	const int32_t C_DECAL_NORMAL_TEX_LOC = 2;
+	const uint32_t C_DECAL_TBN_TANGENT_TEX_LOC = 3;
+	const uint32_t C_DECAL_TBN_BITANGENT_TEX_LOC = 4;
+	const uint32_t C_DECAL_TBN_NORMAL_TEX_LOC = 5;
+	const int32_t C_WOOD_TEX_IDX = 0;
+	const int32_t C_RUSTY_METAL_TEX_IDX = 1;
+	
+
+#if _WIN32
+	glfwMaximizeWindow(window);
+#endif
 	
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -381,19 +392,15 @@ int main(void)
 					&game.gbufferDebugMode, UT_INT); 
 
 			for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
-				const uint32_t texHandleIdx = i % ARRAY_COUNT(albedoTexturePaths);
-//				UtilsDebugPrint("Binding texture %u (%s) for model %u",
-//						texHandleIdx, albedoTexturePaths[texHandleIdx], i);
 				GLCHECK(glActiveTexture(GL_TEXTURE0));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[texHandleIdx].handle));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[C_RUSTY_METAL_TEX_IDX].handle));
 				GLCHECK(glActiveTexture(GL_TEXTURE1));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[texHandleIdx].handle));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[C_RUSTY_METAL_TEX_IDX].handle));
 				GLCHECK(glActiveTexture(GL_TEXTURE2));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.roughnessTextures[texHandleIdx].handle));
+				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.roughnessTextures[C_RUSTY_METAL_TEX_IDX].handle));
 
 				GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
-	//			SetUniform(programHandle, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
-				SetUniform(gbufferProgram, "g_world", sizeof(Mat4X4), &g_world, UT_MAT4);
+				SetUniform(gbufferProgram, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
 				GLCHECK(glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
 					NULL));
 			}
@@ -419,9 +426,15 @@ int main(void)
 					GLCHECK(glActiveTexture(GL_TEXTURE0));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
 					GLCHECK(glActiveTexture(GL_TEXTURE1));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[1].handle));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[C_WOOD_TEX_IDX].handle));
 					GLCHECK(glActiveTexture(GL_TEXTURE2));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[1].handle));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[C_WOOD_TEX_IDX].handle));
+					GLCHECK(glActiveTexture(GL_TEXTURE3));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_tangent));
+					GLCHECK(glActiveTexture(GL_TEXTURE4));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_bitangent));
+					GLCHECK(glActiveTexture(GL_TEXTURE5));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_normal));
 
 					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.view, &game.camera.proj);
 					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
@@ -439,6 +452,9 @@ int main(void)
 					SetUniform(deferredDecal, "g_depth", sizeof(int32_t), &C_DECAL_DEPTH_TEX_LOC, UT_INT);
 					SetUniform(deferredDecal, "g_albedo", sizeof(int32_t), &C_DECAL_ALBEDO_TEX_LOC, UT_INT);
 					SetUniform(deferredDecal, "g_normal", sizeof(int32_t), &C_DECAL_NORMAL_TEX_LOC, UT_INT);
+					SetUniform(deferredDecal, "g_tbn_tangent", sizeof(int32_t), &C_DECAL_TBN_TANGENT_TEX_LOC, UT_INT);
+					SetUniform(deferredDecal, "g_tbn_bitangent", sizeof(int32_t), &C_DECAL_TBN_BITANGENT_TEX_LOC, UT_INT);
+					SetUniform(deferredDecal, "g_tbn_normal", sizeof(int32_t), &C_DECAL_TBN_NORMAL_TEX_LOC, UT_INT);
 					SetUniform(deferredDecal, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
 					SetUniform(deferredDecal, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
 					SetUniform(deferredDecal, "g_invViewProj", sizeof(Mat4X4), &invViewProj, UT_MAT4);
@@ -509,35 +525,39 @@ int main(void)
 			static const int isWireframe = 1;
 			SetUniform(phongProgram, "g_wireframe", sizeof(int), &isWireframe, UT_INT);
 
+			glDisable(GL_CULL_FACE);
+			glDisable(GL_DEPTH_TEST);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {
 				glBindVertexArray(unitCube->meshes[i].vao);
 				SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &unitCube->meshes[i].world, UT_MAT4);
 				glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL);
 			}
+			glEnable(GL_CULL_FACE);
+			glEnable(GL_DEPTH_TEST);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
 
 		// Forward pass
 		// Draw world axis
-		{
-			glUseProgram(phongProgram);
-			glDisable(GL_CULL_FACE);
-			SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
-			SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
-			SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
-			SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
-			const int isWireframe = 0;
-			SetUniform(phongProgram, "g_wireframe", sizeof(int), &isWireframe, UT_INT);
+		//{
+		//	glUseProgram(phongProgram);
+		//	glDisable(GL_CULL_FACE);
+		//	SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
+		//	SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
+		//	SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+		//	SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+		//	const int isWireframe = 0;
+		//	SetUniform(phongProgram, "g_wireframe", sizeof(int), &isWireframe, UT_INT);
 
-			for (uint32_t i = 0; i < 3; ++i) {
-				glBindVertexArray(axisModel->meshes[0].vao);
-				SetUniform(phongProgram, "g_color", sizeof(Vec3D), &axisColors[i], UT_VEC3F);
-				SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &axisWorldTransforms[i], UT_MAT4);
-				glDrawElements(GL_TRIANGLES, axisModel->meshes[0].numIndices, GL_UNSIGNED_INT, NULL);
-			}
-			glEnable(GL_CULL_FACE);
-		}
+		//	for (uint32_t i = 0; i < 3; ++i) {
+		//		glBindVertexArray(axisModel->meshes[0].vao);
+		//		SetUniform(phongProgram, "g_color", sizeof(Vec3D), &axisColors[i], UT_VEC3F);
+		//		SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &axisWorldTransforms[i], UT_MAT4);
+		//		glDrawElements(GL_TRIANGLES, axisModel->meshes[0].numIndices, GL_UNSIGNED_INT, NULL);
+		//	}
+		//	glEnable(GL_CULL_FACE);
+		//}
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
@@ -933,11 +953,15 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 		GL_COLOR_ATTACHMENT1, GL_TRUE, NULL);
 	gbuffer->albedo = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE,
 		GL_COLOR_ATTACHMENT2, GL_TRUE, NULL);
-	gbuffer->decalDebugDepth = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F,
-			GL_RGBA, GL_FLOAT, GL_COLOR_ATTACHMENT4, GL_TRUE, NULL);
+	gbuffer->tbn_tangent = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F,
+		GL_RGBA, GL_FLOAT, GL_COLOR_ATTACHMENT3, GL_TRUE, NULL);
+	gbuffer->tbn_bitangent = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F,
+		GL_RGBA, GL_FLOAT, GL_COLOR_ATTACHMENT4, GL_TRUE, NULL);
+	gbuffer->tbn_normal = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F,
+		GL_RGBA, GL_FLOAT, GL_COLOR_ATTACHMENT5, GL_TRUE, NULL);
 
-	const uint32_t attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
-		GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT4 };
+	const uint32_t attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
+		GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5};
 	GLCHECK(glDrawBuffers(ARRAY_COUNT(attachments), attachments));
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -950,6 +974,12 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 			fbHeight, GL_DEPTH_COMPONENT,
 			GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0, 0, NULL);
 
+	SetObjectName(OI_TEXTURE, gbuffer->albedo, "GBuffer.Albedo");
+	SetObjectName(OI_TEXTURE, gbuffer->normal, "GBuffer.Normal");
+	SetObjectName(OI_TEXTURE, gbuffer->position, "GBuffer.Position");
+	SetObjectName(OI_TEXTURE, gbuffer->tbn_tangent, "GBuffer.TBN.Tangent");
+	SetObjectName(OI_TEXTURE, gbuffer->tbn_bitangent, "GBuffer.TBN.Bitangent");
+	SetObjectName(OI_TEXTURE, gbuffer->tbn_normal, "GBuffer.TBN.Normal");
 
 	return 1;
 }

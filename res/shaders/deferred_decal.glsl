@@ -3,7 +3,6 @@
 layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec4 gAlbedoSpec;
-layout (location = 3) out vec4 gDebugDepth;
 
 uniform mat4 g_invViewProj;
 uniform mat4 g_decalInvWorld;
@@ -14,23 +13,14 @@ uniform vec3 g_bboxMax;
 uniform sampler2D g_depth;
 uniform sampler2D g_albedo;
 uniform sampler2D g_normal;
+uniform sampler2D g_tbn_tangent;
+uniform sampler2D g_tbn_bitangent;
+uniform sampler2D g_tbn_normal;
 
 in vec3 WorldPos;
 in vec2 TexCoords;
-in mat3 TBN;
 in vec4 ClipPos;
 
-vec3 UnpackNormal(vec2 uv)
-{
-	vec3 normalTS = texture(g_normal, uv).xyz * 2.0 - 1.0;
-	vec3 normal = TBN * normalTS;
-	return normalize(normal);
-}
-
-bool InBBox(vec3 pos)
-{
-	return pos.x < g_bboxMax.x && pos.y < g_bboxMax.y && pos.z < g_bboxMax.z;	
-}
 
 vec3 WorldPosFromDepth(vec2 screenPos, float ndcDepth)
 {
@@ -57,15 +47,21 @@ void main()
     vec3  worldPos = WorldPosFromDepth(screenPos, depth);
 	vec3 localPos = (g_decalInvWorld * vec4(worldPos, 1.0)).xyz;
 	vec2 decalUV = localPos.xz * 0.5 + 0.5;
-	if (!InBBox(abs(localPos))) {
-//		gAlbedoSpec = vec4(1.0, 0.0, 0.0, 1.0);
+	
+	if (abs(localPos).x > 1.0 || abs(localPos).z > 1.0 || abs(localPos).y > 1.0) {
 		discard;
 	}
 	else {
+		vec3 T = texture(g_tbn_tangent, uv).xyz * 2.0 - 1.0;
+		vec3 B = texture(g_tbn_bitangent, uv).xyz * 2.0 - 1.0;
+		vec3 N = texture(g_tbn_normal, uv).xyz * 2.0 - 1.0;
+		mat3 TBN = mat3(T, B, N);
+		vec3 normalTS = texture(g_normal, decalUV).xyz * 2.0 - 1.0;
+		vec3 normal = TBN * normalTS;
+		normal = normalize(normal);
 		vec3 albedo = texture(g_albedo, decalUV).rgb;
 		float roughness = 1.0;
 		gAlbedoSpec = vec4(albedo, roughness);
-		gDebugDepth = vec4(worldPos, depth);
-		gNormal = UnpackNormal(decalUV);
+		gNormal = normalize(normal);
 	}
 }
