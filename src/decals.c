@@ -297,7 +297,10 @@ int main(void)
 		unitCubeOffset.Z = -3.0f;
 		unitCubeOffset.Y = 2.0f;
 		
+		// Always orient decal so that Y faces outward of surface that decal is applied to
 		world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
+		Mat4X4 rotate90 = MathMat4X4RotateX(MathToRadians(90.0f));
+		world = MathMat4X4MultMat4X4ByMat4X4(&rotate90, &world);
 		decalWorlds[1] = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
 
 		decalInvWorlds[0] = MathMat4X4Inverse(&decalWorlds[0]);
@@ -337,17 +340,20 @@ int main(void)
 	stbi_set_flip_vertically_on_load(1);
 	const char *albedoTexturePaths[] = {
 		"assets/older-wood-flooring-bl/older-wood-flooring_albedo.png",
-		"assets/rusty-metal-bl/rusty-metal_albedo.png"
+		"assets/rusty-metal-bl/rusty-metal_albedo.png",
+		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_COL_1K_SPECULAR.png"
 	};
 
 	const char *normalTexturesPaths[] = {
 		"assets/older-wood-flooring-bl/older-wood-flooring_normal-ogl.png",
-		"assets/rusty-metal-bl/rusty-metal_normal-ogl.png"
+		"assets/rusty-metal-bl/rusty-metal_normal-ogl.png",
+		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_NRM_1K_SPECULAR.png"
 	};
 
 	const char *roughnessTexturePaths[] = {
 		"assets/older-wood-flooring-bl/older-wood-flooring_specular.png",
 		"assets/rusty-metal-bl/rusty-metal_specular.png",
+		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_GLOSS_1K_SPECULAR.png"
 	};
 
 	game.numTextures = ARRAY_COUNT(albedoTexturePaths);
@@ -375,7 +381,8 @@ int main(void)
 	const uint32_t C_DECAL_TBN_NORMAL_TEX_LOC = 5;
 	const int32_t C_WOOD_TEX_IDX = 0;
 	const int32_t C_RUSTY_METAL_TEX_IDX = 1;
-	
+	const int32_t C_BRICKS_TEX_IDX = 2;
+	const int32_t DECAL_TEXTURE_INDICES[2] = { C_WOOD_TEX_IDX, C_BRICKS_TEX_IDX };
 
 #if _WIN32
 	glfwMaximizeWindow(window);
@@ -459,13 +466,19 @@ int main(void)
 
 					const Vec3D bboxMin = { -1.0f, -1.0f, -1.0f };
 					const Vec3D bboxMax = { 1.0f, 1.0f, 1.0f };
+					GLCHECK(glActiveTexture(GL_TEXTURE0));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
+					GLCHECK(glActiveTexture(GL_TEXTURE3));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_tangent));
+					GLCHECK(glActiveTexture(GL_TEXTURE4));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_bitangent));
+					GLCHECK(glActiveTexture(GL_TEXTURE5));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_normal));
 					SetUniform(deferredDecal, "g_bboxMin", sizeof(Vec3D), &bboxMin, UT_VEC3F);
 					SetUniform(deferredDecal, "g_bboxMax", sizeof(Vec3D), &bboxMax, UT_VEC3F);
 					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 					SetUniform(deferredDecal, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
 					SetUniform(deferredDecal, "g_depth", sizeof(int32_t), &C_DECAL_DEPTH_TEX_LOC, UT_INT);
-					SetUniform(deferredDecal, "g_albedo", sizeof(int32_t), &C_DECAL_ALBEDO_TEX_LOC, UT_INT);
-					SetUniform(deferredDecal, "g_normal", sizeof(int32_t), &C_DECAL_NORMAL_TEX_LOC, UT_INT);
 					SetUniform(deferredDecal, "g_tbn_tangent", sizeof(int32_t), &C_DECAL_TBN_TANGENT_TEX_LOC, UT_INT);
 					SetUniform(deferredDecal, "g_tbn_bitangent", sizeof(int32_t), &C_DECAL_TBN_BITANGENT_TEX_LOC, UT_INT);
 					SetUniform(deferredDecal, "g_tbn_normal", sizeof(int32_t), &C_DECAL_TBN_NORMAL_TEX_LOC, UT_INT);
@@ -474,11 +487,16 @@ int main(void)
 					SetUniform(deferredDecal, "g_invViewProj", sizeof(Mat4X4), &invViewProj, UT_MAT4);
 					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 					SetUniform(deferredDecal, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+					SetUniform(deferredDecal, "g_albedo", sizeof(int32_t), &C_DECAL_ALBEDO_TEX_LOC, UT_INT);
+					SetUniform(deferredDecal, "g_normal", sizeof(int32_t), &C_DECAL_NORMAL_TEX_LOC, UT_INT);
 					GLCHECK(glBindVertexArray(unitCube->meshes[i].vao));
 					for (uint32_t n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
 						SetUniform(deferredDecal, "g_world", sizeof(Mat4X4), &decalWorlds[n], UT_MAT4);
 						SetUniform(deferredDecal, "g_decalInvWorld", sizeof(Mat4X4), &decalInvWorlds[n], UT_MAT4);
-
+						GLCHECK(glActiveTexture(GL_TEXTURE1));
+						GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[DECAL_TEXTURE_INDICES[n]].handle));
+						GLCHECK(glActiveTexture(GL_TEXTURE2));
+						GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[DECAL_TEXTURE_INDICES[n]].handle));
 						GLCHECK(glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
 					}
 				}
