@@ -168,6 +168,10 @@ void Camera_Init(struct Camera *camera, const Vec3D *position,
 
 void Game_Update(struct Game *game);
 
+void PusheRenderPassAnnotation(const char* passName);
+
+void PopRenderPassAnnotation(void);
+
 void DebugBreak()
 {
 #if _WIN32
@@ -377,40 +381,45 @@ int main(void)
 		ProcessInput(window);
 		Game_Update(&game);
 		// GBuffer Pass
-		// bind GBuffer and draw geometry to GBuffer
 		{
-			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, game.gbuffer.framebuffer));
-			GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-			GLCHECK(glUseProgram(gbufferProgram));
+			PusheRenderPassAnnotation("GBuffer Pass");
+			{
+				PusheRenderPassAnnotation("Geometry Pass");
+				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, game.gbuffer.framebuffer));
+				GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+				GLCHECK(glUseProgram(gbufferProgram));
 
-			SetUniform(gbufferProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
-			SetUniform(gbufferProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
-			SetUniform(gbufferProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
-			SetUniform(gbufferProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+				SetUniform(gbufferProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
+				SetUniform(gbufferProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
+				SetUniform(gbufferProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+				SetUniform(gbufferProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 
-			SetUniform(gbufferProgram, "g_albedoTex", sizeof(int32_t), &C_ALBEDO_TEX_LOC, UT_INT); 
-			SetUniform(gbufferProgram, "g_normalTex", sizeof(int32_t), &C_NORMAL_TEX_LOC, UT_INT); 
-			SetUniform(gbufferProgram, "g_roughnessTex", sizeof(int32_t),
-					&C_ROUGHNESS_TEX_LOC, UT_INT); 
-			SetUniform(gbufferProgram, "g_gbufferDebugMode", sizeof(int32_t),
-					&game.gbufferDebugMode, UT_INT); 
+				SetUniform(gbufferProgram, "g_albedoTex", sizeof(int32_t), &C_ALBEDO_TEX_LOC, UT_INT);
+				SetUniform(gbufferProgram, "g_normalTex", sizeof(int32_t), &C_NORMAL_TEX_LOC, UT_INT);
+				SetUniform(gbufferProgram, "g_roughnessTex", sizeof(int32_t),
+					&C_ROUGHNESS_TEX_LOC, UT_INT);
+				SetUniform(gbufferProgram, "g_gbufferDebugMode", sizeof(int32_t),
+					&game.gbufferDebugMode, UT_INT);
 
-			for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
-				GLCHECK(glActiveTexture(GL_TEXTURE0));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[C_RUSTY_METAL_TEX_IDX].handle));
-				GLCHECK(glActiveTexture(GL_TEXTURE1));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[C_RUSTY_METAL_TEX_IDX].handle));
-				GLCHECK(glActiveTexture(GL_TEXTURE2));
-				GLCHECK(glBindTexture(GL_TEXTURE_2D, game.roughnessTextures[C_RUSTY_METAL_TEX_IDX].handle));
+				for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
+					GLCHECK(glActiveTexture(GL_TEXTURE0));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[C_RUSTY_METAL_TEX_IDX].handle));
+					GLCHECK(glActiveTexture(GL_TEXTURE1));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[C_RUSTY_METAL_TEX_IDX].handle));
+					GLCHECK(glActiveTexture(GL_TEXTURE2));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.roughnessTextures[C_RUSTY_METAL_TEX_IDX].handle));
 
-				GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
-				SetUniform(gbufferProgram, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
-				GLCHECK(glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
-					NULL));
+					GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
+					SetUniform(gbufferProgram, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
+					GLCHECK(glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
+						NULL));
+				}
+				PopRenderPassAnnotation();
 			}
 
 			// Decal pass
 			{
+				PusheRenderPassAnnotation("Decal Pass");
 				// Set read only depth
 				glDepthFunc(GL_GREATER);
 				glDepthMask(GL_FALSE);
@@ -486,13 +495,16 @@ int main(void)
 				glDepthFunc(GL_LESS);
 				glDepthMask(GL_TRUE);
 				glCullFace(GL_BACK);
+				PopRenderPassAnnotation();
 			}
 
 			GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+			PopRenderPassAnnotation();
 		}
 
 		// Deferred Shading Pass
 		{
+			PusheRenderPassAnnotation("Deferred Shading Pass");
 			GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 			GLCHECK(glUseProgram(deferredProgram));
 			GLCHECK(glActiveTexture(GL_TEXTURE0));
@@ -513,10 +525,12 @@ int main(void)
 			SetUniform(deferredProgram, "g_normal", sizeof(uint32_t), &g_normal, UT_INT);
 			SetUniform(deferredProgram, "g_albedo", sizeof(uint32_t), &g_albedo, UT_INT);
 			RenderQuad(&fsqPass);
+			PopRenderPassAnnotation();
 		}
 
 		// Copy gbuffer depth to default framebuffer's depth 
 		{
+			PusheRenderPassAnnotation("Copy GBuffer Depth Pass");
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, game.gbuffer.framebuffer);
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
         // blit to default framebuffer. Note that this may or may not work as the internal formats of both the FBO and default framebuffer have to match.
@@ -526,10 +540,12 @@ int main(void)
 					0, 0, game.framebufferSize.width, game.framebufferSize.height, 
 					GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			PopRenderPassAnnotation();
 		}
 
 		// Wireframe pass
 		{
+			PusheRenderPassAnnotation("Wireframe Pass");
 			glUseProgram(phongProgram);
 			SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
 			SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
@@ -547,6 +563,7 @@ int main(void)
 				}
 			}
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			PopRenderPassAnnotation();
 		}
 
         /* Swap front and back buffers */
@@ -1235,4 +1252,14 @@ void Game_Update(struct Game *game)
 	const Vec3D focusPos = MathVec3DAddition(&game->camera.position, &game->camera.front);
 	const Vec3D up = { 0.0f, 1.0f, 0.0f };
 	game->camera.view = MathMat4X4ViewAt(&game->camera.position, &focusPos, &up);
+}
+
+void PusheRenderPassAnnotation(const char* passName)
+{
+	glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(passName), passName);
+}
+
+void PopRenderPassAnnotation(void)
+{
+	glPopDebugGroup();
 }
