@@ -136,7 +136,6 @@ struct ModelProxy *CreateModelProxy(const struct Model *m);
 
 void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const void *data, enum UniformType type);
 
-void RotateLight(Vec3D *light, float radius);
 double GetDeltaTime();
 
 uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
@@ -321,7 +320,7 @@ int main(void)
 		axisWorldTransforms[2] = MathMat4X4RotateX(MathToRadians(90.0f));
 	}
 
-	const Vec3D eyePos = { .Y = 15.0f, .Z = 30.0f };
+	const Vec3D eyePos = { 4.633266f, 9.594514f, 6.876969f };
 	const float zNear = 0.1f;
 	const float zFar = 1000.0f;
 
@@ -330,8 +329,7 @@ int main(void)
 			(float)game.framebufferSize.width / (float)game.framebufferSize.height,
 			zNear, zFar);
 
-	const float radius = 35.0f;
-	Vec3D g_lightPos = { 0.0, 50.0, -20.0 };
+	const Vec3D g_lightPos = { 0.0, 10.0, 0.0 };
 
 	InitGBuffer(&game.gbuffer, game.framebufferSize.width, game.framebufferSize.height);
 
@@ -389,10 +387,11 @@ int main(void)
 #endif
 	
     /* Loop until the user closes the window */
-    while (!glfwWindowShouldClose(window))
+    while(!glfwWindowShouldClose(window))
     {
 		ProcessInput(window);
 		Game_Update(&game);
+		//UtilsDebugPrint("%f %f %f", game.camera.front.X, game.camera.front.Y, game.camera.front.Z);
 		// GBuffer Pass
 		// bind GBuffer and draw geometry to GBuffer
 		{
@@ -402,7 +401,6 @@ int main(void)
 
 			SetUniform(gbufferProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
 			SetUniform(gbufferProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
-			RotateLight(&g_lightPos, radius);
 			SetUniform(gbufferProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			SetUniform(gbufferProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 
@@ -519,9 +517,6 @@ int main(void)
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.normal));
 			GLCHECK(glActiveTexture(GL_TEXTURE2));
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.albedo));
-	//		SetUniform(deferredProgram, "g_view", sizeof(Mat4X4), &g_view, UT_MAT4);
-	//		SetUniform(deferredProgram, "g_proj", sizeof(Mat4X4), &g_proj, UT_MAT4);
-			RotateLight(&g_lightPos, radius);
 			SetUniform(deferredProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			SetUniform(deferredProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 			SetUniform(deferredProgram, "g_gbufferDebugMode", sizeof(int32_t),
@@ -896,17 +891,6 @@ double GetDeltaTime()
 	return dt;
 }
 
-void RotateLight(Vec3D *light, float radius)
-{
-	static double time = 0.0;
-	double dt = GetDeltaTime();
-	time += dt;
-	const float x = (float)(radius * cos(time));
-	const float z = (float)(radius * sin(time));
-	light->X = x;
-	light->Z = z;
-}
-
 uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
 		int format, int type, int attachment, int genFB, const char *imagePath)
 {
@@ -1266,7 +1250,7 @@ void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat
 void Camera_Init(struct Camera *camera, const Vec3D *position,
 		float fov, float aspectRatio, float zNear, float zFar)
 {
-	const Vec3D front = { 0.0f, 0.0f, -1.0f };
+	const Vec3D front = { -0.390251f, -0.463592f, -0.795480f };
 	const Vec3D up = { 0.0f, 1.0f, 0.0f };
 	const Vec3D right = MathVec3DCross(&up, &front);
 	camera->position = *position;
