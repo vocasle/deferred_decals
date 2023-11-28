@@ -391,7 +391,6 @@ int main(void)
     {
 		ProcessInput(window);
 		Game_Update(&game);
-		//UtilsDebugPrint("%f %f %f", game.camera.front.X, game.camera.front.Y, game.camera.front.Z);
 		// GBuffer Pass
 		// bind GBuffer and draw geometry to GBuffer
 		{
@@ -1195,10 +1194,13 @@ void ProcessInput(GLFWwindow* window)
 	}
 	// TODO: Fix pitch, currently front follows circle, if W is pressed continuously
 	else if (IsKeyPressed(window, GLFW_KEY_UP)) {
-		const Mat4X4 rotation = MathMat4X4RotateX(MathToRadians(-1.0f));
+		const Mat4X4 rotation = MathMat4X4RotateX(MathToRadians(1.0f));
 		Vec4D tmp = { game->camera.front.X, game->camera.front.Y,
 			game->camera.front.Z, 0.0f };
+		const Mat4X4 invView = MathMat4X4Inverse(&game->camera.view);
+		tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &game->camera.view);
 		tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &rotation);
+		tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &invView);
 		game->camera.front.X = tmp.X;
 		game->camera.front.Y = tmp.Y;
 		game->camera.front.Z = tmp.Z;
@@ -1206,10 +1208,16 @@ void ProcessInput(GLFWwindow* window)
 		game->camera.right = MathVec3DCross(&up, &game->camera.front);
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_DOWN)) {
-		const Mat4X4 rotation = MathMat4X4RotateX(MathToRadians(1.0f));
+		const Mat4X4 invView = MathMat4X4Inverse(&game->camera.view);
+		const Mat4X4 rotation = MathMat4X4RotateX(MathToRadians(-1.0f));
 		Vec4D tmp = { game->camera.front.X, game->camera.front.Y,
 			game->camera.front.Z, 0.0f };
+
+		// Move front vector from world space to camera
+		tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &game->camera.view);
 		tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &rotation);
+		tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &invView);
+
 		game->camera.front.X = tmp.X;
 		game->camera.front.Y = tmp.Y;
 		game->camera.front.Z = tmp.Z;
