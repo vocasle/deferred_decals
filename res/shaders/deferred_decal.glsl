@@ -1,6 +1,5 @@
 #version 330 core
 
-layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec3 gNormal;
 layout (location = 2) out vec4 gAlbedoSpec;
 
@@ -9,13 +8,11 @@ uniform mat4 g_decalInvWorld;
 uniform vec4 g_rtSize;
 uniform vec3 g_bboxMin;
 uniform vec3 g_bboxMax;
+uniform mat4 g_world;
 
 uniform sampler2D g_depth;
 uniform sampler2D g_albedo;
 uniform sampler2D g_normal;
-uniform sampler2D g_tbn_tangent;
-uniform sampler2D g_tbn_bitangent;
-uniform sampler2D g_tbn_normal;
 
 in vec3 WorldPos;
 in vec2 TexCoords;
@@ -52,12 +49,9 @@ void main()
 		discard;
 	}
 	else {
-		vec3 T = texture(g_tbn_tangent, uv).xyz * 2.0 - 1.0;
-		vec3 B = texture(g_tbn_bitangent, uv).xyz * 2.0 - 1.0;
-		vec3 N = texture(g_tbn_normal, uv).xyz * 2.0 - 1.0;
-		mat3 TBN = mat3(T, B, N);
+		mat3 TBN = mat3(normalize(g_world[0]), normalize(g_world[1]), normalize(g_world[2]));
 		vec3 normalTS = texture(g_normal, decalUV).xyz * 2.0 - 1.0;
-		vec3 normal = TBN * normalTS;
+		vec3 normal = transpose(TBN) * normalTS;
 		normal = normalize(normal);
 		vec3 albedo = texture(g_albedo, decalUV).rgb;
 		float roughness = 1.0;

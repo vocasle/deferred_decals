@@ -83,9 +83,6 @@ struct GBuffer {
 	uint32_t framebuffer;
 	uint32_t depthBuffer;
 	uint32_t gbufferDepthTex;
-	uint32_t tbn_tangent;
-	uint32_t tbn_bitangent;
-	uint32_t tbn_normal;
 };
 
 struct FullscreenQuadPass {
@@ -168,7 +165,7 @@ void Camera_Init(struct Camera *camera, const Vec3D *position,
 
 void Game_Update(struct Game *game);
 
-void PusheRenderPassAnnotation(const char* passName);
+void PushRenderPassAnnotation(const char* passName);
 
 void PopRenderPassAnnotation(void);
 
@@ -203,12 +200,14 @@ MessageCallback(GLenum source,
                 const GLchar* message,
                 const void* userParam)
 {
-  fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
-           (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
-            type, severity, message);
-  if (type == GL_DEBUG_TYPE_ERROR) {
-	  exit(-1);
-  }
+	if (severity > GL_DEBUG_SEVERITY_NOTIFICATION) {
+		fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+			(type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
+			type, severity, message);
+	}
+	if (type == GL_DEBUG_TYPE_ERROR) {
+		exit(-1);
+	}
 }
 
 int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight);
@@ -293,17 +292,18 @@ int main(void)
 	Mat4X4 decalInvWorlds[2] = { 0 };
 	{
 		Vec3D unitCubeOffset = { 0.0f, 0.0f, 0.0f };
-		const Vec3D unitCubeScale = { 4.0f, 4.0f, 4.0f };
+		const Vec3D unitCubeScale = { 2.0f, 2.0f, 2.0f };
 		Mat4X4 scale = MathMat4X4ScaleFromVec3D(&unitCubeScale);
 		Mat4X4 world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
 		decalWorlds[0] = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
-		unitCubeOffset.Z = -3.0f;
-		unitCubeOffset.Y = 2.0f;
+		//unitCubeOffset.Z = -3.0f;
+		unitCubeOffset.Y = 1.0f;
+		unitCubeOffset.X = 2.0f;
 		
 		// Always orient decal so that Y faces outward of surface that decal is applied to
 		world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
-		Mat4X4 rotate90 = MathMat4X4RotateX(MathToRadians(90.0f));
-		world = MathMat4X4MultMat4X4ByMat4X4(&rotate90, &world);
+		//Mat4X4 rotate90 = MathMat4X4RotateX(MathToRadians(90.0f));
+		//world = MathMat4X4MultMat4X4ByMat4X4(&rotate90, &world);
 		decalWorlds[1] = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
 
 		decalInvWorlds[0] = MathMat4X4Inverse(&decalWorlds[0]);
@@ -382,9 +382,9 @@ int main(void)
 		Game_Update(&game);
 		// GBuffer Pass
 		{
-			PusheRenderPassAnnotation("GBuffer Pass");
+			PushRenderPassAnnotation("GBuffer Pass");
 			{
-				PusheRenderPassAnnotation("Geometry Pass");
+				PushRenderPassAnnotation("Geometry Pass");
 				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, game.gbuffer.framebuffer));
 				GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 				GLCHECK(glUseProgram(gbufferProgram));
@@ -419,7 +419,7 @@ int main(void)
 
 			// Decal pass
 			{
-				PusheRenderPassAnnotation("Decal Pass");
+				PushRenderPassAnnotation("Decal Pass");
 				// Set read only depth
 				glDepthFunc(GL_GREATER);
 				glDepthMask(GL_FALSE);
@@ -443,11 +443,6 @@ int main(void)
 					GLCHECK(glActiveTexture(GL_TEXTURE2));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[C_WOOD_TEX_IDX].handle));
 					GLCHECK(glActiveTexture(GL_TEXTURE3));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_tangent));
-					GLCHECK(glActiveTexture(GL_TEXTURE4));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_bitangent));
-					GLCHECK(glActiveTexture(GL_TEXTURE5));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_normal));
 
 					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.view, &game.camera.proj);
 					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
@@ -460,11 +455,7 @@ int main(void)
 					GLCHECK(glActiveTexture(GL_TEXTURE0));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
 					GLCHECK(glActiveTexture(GL_TEXTURE3));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_tangent));
-					GLCHECK(glActiveTexture(GL_TEXTURE4));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_bitangent));
-					GLCHECK(glActiveTexture(GL_TEXTURE5));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.tbn_normal));
+
 					SetUniform(deferredDecal, "g_bboxMin", sizeof(Vec3D), &bboxMin, UT_VEC3F);
 					SetUniform(deferredDecal, "g_bboxMax", sizeof(Vec3D), &bboxMax, UT_VEC3F);
 					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
@@ -504,7 +495,7 @@ int main(void)
 
 		// Deferred Shading Pass
 		{
-			PusheRenderPassAnnotation("Deferred Shading Pass");
+			PushRenderPassAnnotation("Deferred Shading Pass");
 			GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 			GLCHECK(glUseProgram(deferredProgram));
 			GLCHECK(glActiveTexture(GL_TEXTURE0));
@@ -530,7 +521,7 @@ int main(void)
 
 		// Copy gbuffer depth to default framebuffer's depth 
 		{
-			PusheRenderPassAnnotation("Copy GBuffer Depth Pass");
+			PushRenderPassAnnotation("Copy GBuffer Depth Pass");
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, game.gbuffer.framebuffer);
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
         // blit to default framebuffer. Note that this may or may not work as the internal formats of both the FBO and default framebuffer have to match.
@@ -545,7 +536,7 @@ int main(void)
 
 		// Wireframe pass
 		{
-			PusheRenderPassAnnotation("Wireframe Pass");
+			PushRenderPassAnnotation("Wireframe Pass");
 			glUseProgram(phongProgram);
 			SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
 			SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
@@ -949,15 +940,9 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 		GL_COLOR_ATTACHMENT1, GL_TRUE, NULL);
 	gbuffer->albedo = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE,
 		GL_COLOR_ATTACHMENT2, GL_TRUE, NULL);
-	gbuffer->tbn_tangent = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F,
-		GL_RGBA, GL_FLOAT, GL_COLOR_ATTACHMENT3, GL_TRUE, NULL);
-	gbuffer->tbn_bitangent = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F,
-		GL_RGBA, GL_FLOAT, GL_COLOR_ATTACHMENT4, GL_TRUE, NULL);
-	gbuffer->tbn_normal = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F,
-		GL_RGBA, GL_FLOAT, GL_COLOR_ATTACHMENT5, GL_TRUE, NULL);
 
 	const uint32_t attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
-		GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3, GL_COLOR_ATTACHMENT4, GL_COLOR_ATTACHMENT5};
+		GL_COLOR_ATTACHMENT2 };
 	GLCHECK(glDrawBuffers(ARRAY_COUNT(attachments), attachments));
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -973,9 +958,6 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 	SetObjectName(OI_TEXTURE, gbuffer->albedo, "GBuffer.Albedo");
 	SetObjectName(OI_TEXTURE, gbuffer->normal, "GBuffer.Normal");
 	SetObjectName(OI_TEXTURE, gbuffer->position, "GBuffer.Position");
-	SetObjectName(OI_TEXTURE, gbuffer->tbn_tangent, "GBuffer.TBN.Tangent");
-	SetObjectName(OI_TEXTURE, gbuffer->tbn_bitangent, "GBuffer.TBN.Bitangent");
-	SetObjectName(OI_TEXTURE, gbuffer->tbn_normal, "GBuffer.TBN.Normal");
 
 	return 1;
 }
@@ -1254,7 +1236,7 @@ void Game_Update(struct Game *game)
 	game->camera.view = MathMat4X4ViewAt(&game->camera.position, &focusPos, &up);
 }
 
-void PusheRenderPassAnnotation(const char* passName)
+void PushRenderPassAnnotation(const char* passName)
 {
 	glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(passName), passName);
 }
