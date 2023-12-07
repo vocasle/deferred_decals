@@ -12,11 +12,26 @@ uniform vec3 g_cameraPos;
 uniform vec3 g_lightPos;
 uniform int g_gbufferDebugMode;
 
+#define GDM_VERTEX_NORMAL 1
+#define GDM_TANGENT 2
+#define GDM_BITANGENT 3
+#define GDM_NORMAL_MAP 4
+#define GDM_ALBEDO 5
+#define GDM_POSITION 6
+
 void main()
 {             
     vec4 albedo = texture(g_albedo, TexCoords).rgba;
 	if (g_gbufferDebugMode != 0) {
-		color = vec4(albedo.rgb, 1.0);
+		if (g_gbufferDebugMode == GDM_NORMAL_MAP) {
+			color.rgb = normalize(texture(g_normal, TexCoords).xyz);
+		}
+		else if (g_gbufferDebugMode == GDM_POSITION) {
+			color.rgb = texture(g_position, TexCoords).xyz;
+		}
+		else if (g_gbufferDebugMode == GDM_ALBEDO) {
+			color.rgb = albedo.rgb;
+		}
 	}
 	else {
 		// retrieve data from gbuffer

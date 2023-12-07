@@ -398,8 +398,6 @@ int main(void)
 				SetUniform(gbufferProgram, "g_normalTex", sizeof(int32_t), &C_NORMAL_TEX_LOC, UT_INT);
 				SetUniform(gbufferProgram, "g_roughnessTex", sizeof(int32_t),
 					&C_ROUGHNESS_TEX_LOC, UT_INT);
-				SetUniform(gbufferProgram, "g_gbufferDebugMode", sizeof(int32_t),
-					&game.gbufferDebugMode, UT_INT);
 
 				for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
 					GLCHECK(glActiveTexture(GL_TEXTURE0));
