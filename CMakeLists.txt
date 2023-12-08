@@ -12,7 +12,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE "src/" "thirdparty/")
 add_subdirectory(thirdparty/glfw)
 add_subdirectory(thirdparty/glad)
 add_subdirectory(thirdparty/mikktspace)
+add_subdirectory(thirdparty/nuklear)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad mikktspace)
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw glad mikktspace nuklear)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE RES_HOME="${CMAKE_SOURCE_DIR}/res" _CRT_SECURE_NO_WARNINGS)

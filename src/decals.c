@@ -12,6 +12,22 @@
 #include "objloader.h"
 #include "mymath.h"
 
+#define NK_INCLUDE_FIXED_TYPES
+#define NK_INCLUDE_STANDARD_IO
+#define NK_INCLUDE_STANDARD_VARARGS
+#define NK_INCLUDE_DEFAULT_ALLOCATOR
+#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
+#define NK_INCLUDE_FONT_BAKING
+#define NK_INCLUDE_DEFAULT_FONT
+#define NK_IMPLEMENTATION
+#define NK_GLFW_GL3_IMPLEMENTATION
+#define NK_KEYSTATE_BASED_INPUT
+#include <nuklear/nuklear.h>
+#include <nuklear/nuklear_glfw_gl3.h>
+
+#define MAX_VERTEX_BUFFER 512 * 1024
+#define MAX_ELEMENT_BUFFER 128 * 1024
+
 #if _WIN32
 	__declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
 	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
@@ -68,9 +84,6 @@ enum ObjectIdentifier {
 
 enum GBufferDebugMode {
 	GDM_NONE,
-	GDM_VERTEX_NORMAL,
-	GDM_TANGENT,
-	GDM_BITANGENT,
 	GDM_NORMAL_MAP,
 	GDM_ALBEDO,
 	GDM_POSITION,
@@ -120,6 +133,7 @@ struct Game {
 	struct Texture2D *roughnessTextures;
 	uint32_t numTextures;
 	struct Camera camera;
+	struct nk_glfw nuklear;
 };
 
 struct File LoadShader(const char *shaderName);
@@ -200,17 +214,29 @@ MessageCallback(GLenum source,
                 const GLchar* message,
                 const void* userParam)
 {
-	if (severity > GL_DEBUG_SEVERITY_NOTIFICATION) {
+	if (source != GL_DEBUG_SOURCE_APPLICATION && severity >= GL_DEBUG_SEVERITY_LOW) {
 		fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
 			(type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
 			type, severity, message);
 	}
+	
 	if (type == GL_DEBUG_TYPE_ERROR) {
 		exit(-1);
 	}
 }
 
 int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight);
+
+void InitNuklear(GLFWwindow *window)
+{
+	struct Game* game = glfwGetWindowUserPointer(window);
+	nk_glfw3_init(&game->nuklear, window, NK_GLFW3_DEFAULT);
+	{
+		struct nk_font_atlas* atlas = NULL;
+		nk_glfw3_font_stash_begin(&game->nuklear, &atlas);
+		nk_glfw3_font_stash_end(&game->nuklear);
+	}
+}
 
 int main(void)
 {
@@ -246,7 +272,7 @@ int main(void)
 	}
 
     glfwSetFramebufferSizeCallback(window, OnFramebufferResize);
-
+	
     struct ModelProxy *modelProxy = LoadModel("assets/room.obj");
 	{
 		Mat4X4 rotate90 = MathMat4X4RotateY(MathToRadians(-90.0f));
@@ -374,10 +400,14 @@ int main(void)
 #if _WIN32
 	glfwMaximizeWindow(window);
 #endif
+
+	InitNuklear(window);
+	struct nk_colorf bg = { 0.10f, 0.18f, 0.24f, 1.0f };
 	
     /* Loop until the user closes the window */
     while(!glfwWindowShouldClose(window))
     {
+		nk_glfw3_new_frame(&game.nuklear);
 		ProcessInput(window);
 		Game_Update(&game);
 		// GBuffer Pass
@@ -552,6 +582,48 @@ int main(void)
 				}
 			}
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			PopRenderPassAnnotation();
+		}
+
+		// GUI Pass
+		{
+			PushRenderPassAnnotation("Nuklear Pass");
+			struct nk_context* ctx = &game.nuklear.ctx;
+			if (nk_begin(ctx, "Demo", nk_rect(50, 50, 230, 250),
+				NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE |
+				NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
+			{
+				enum { EASY, HARD };
+				static int op = EASY;
+				static int property = 20;
+				nk_layout_row_static(ctx, 30, 80, 1);
+				if (nk_button_label(ctx, "button"))
+					fprintf(stdout, "button pressed\n");
+
+				nk_layout_row_dynamic(ctx, 30, 2);
+				if (nk_option_label(ctx, "easy", op == EASY)) op = EASY;
+				if (nk_option_label(ctx, "hard", op == HARD)) op = HARD;
+
+				nk_layout_row_dynamic(ctx, 25, 1);
+				nk_property_int(ctx, "Compression:", 0, &property, 100, 10, 1);
+
+				nk_layout_row_dynamic(ctx, 20, 1);
+				nk_label(ctx, "background:", NK_TEXT_LEFT);
+				nk_layout_row_dynamic(ctx, 25, 1);
+				if (nk_combo_begin_color(ctx, nk_rgb_cf(bg), nk_vec2(nk_widget_width(ctx), 400))) {
+					nk_layout_row_dynamic(ctx, 120, 1);
+					bg = nk_color_picker(ctx, bg, NK_RGBA);
+					nk_layout_row_dynamic(ctx, 25, 1);
+					bg.r = nk_propertyf(ctx, "#R:", 0, bg.r, 1.0f, 0.01f, 0.005f);
+					bg.g = nk_propertyf(ctx, "#G:", 0, bg.g, 1.0f, 0.01f, 0.005f);
+					bg.b = nk_propertyf(ctx, "#B:", 0, bg.b, 1.0f, 0.01f, 0.005f);
+					bg.a = nk_propertyf(ctx, "#A:", 0, bg.a, 1.0f, 0.01f, 0.005f);
+					nk_combo_end(ctx);
+				}
+			}
+			nk_end(ctx);
+
+			nk_glfw3_render(&game.nuklear, NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
 			PopRenderPassAnnotation();
 		}
 
@@ -1090,21 +1162,12 @@ void ProcessInput(GLFWwindow* window)
 		game->gbufferDebugMode = GDM_NONE;
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_1)) {
-		game->gbufferDebugMode = GDM_VERTEX_NORMAL;
-	}
-	else if (IsKeyPressed(window, GLFW_KEY_2)) {
 		game->gbufferDebugMode = GDM_NORMAL_MAP;
 	}
-	else if (IsKeyPressed(window, GLFW_KEY_3)) {
-		game->gbufferDebugMode = GDM_TANGENT;
-	}
-	else if (IsKeyPressed(window, GLFW_KEY_4)) {
-		game->gbufferDebugMode = GDM_BITANGENT;
-	}
-	else if (IsKeyPressed(window,GLFW_KEY_5)) {
+	else if (IsKeyPressed(window, GLFW_KEY_2)) {
 		game->gbufferDebugMode = GDM_ALBEDO;
 	}
-	else if (IsKeyPressed(window, GLFW_KEY_6)) {
+	else if (IsKeyPressed(window, GLFW_KEY_3)) {
 		game->gbufferDebugMode = GDM_POSITION;
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_R)) {
