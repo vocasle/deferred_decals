@@ -234,8 +234,19 @@ void InitNuklear(GLFWwindow *window)
 	{
 		struct nk_font_atlas* atlas = NULL;
 		nk_glfw3_font_stash_begin(&game->nuklear, &atlas);
+
+		struct nk_font *droid = nk_font_atlas_add_from_file(atlas, 
+			UtilsFormatStr("%s/%s", RES_HOME, "fonts/DroidSans.ttf"), 22, 0);
 		nk_glfw3_font_stash_end(&game->nuklear);
+		nk_style_load_all_cursors(&game->nuklear.ctx, atlas->cursors);
+		nk_style_set_font(&game->nuklear.ctx, &droid->handle);
 	}
+}
+
+void DeinitNuklear(GLFWwindow* window)
+{
+	struct Game* game = glfwGetWindowUserPointer(window);
+	nk_glfw3_shutdown(&game->nuklear);
 }
 
 int main(void)
@@ -634,6 +645,7 @@ int main(void)
         glfwPollEvents();
     }
 
+	DeinitNuklear(window);
     glfwTerminate();
     return 0;
 }
