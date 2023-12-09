@@ -333,6 +333,7 @@ int main(void)
 
 	Mat4X4 decalWorlds[2] = { 0 };
 	Mat4X4 decalInvWorlds[2] = { 0 };
+	struct Transform decalTransforms[2] = { 0 };
 	{
 		Vec3D unitCubeOffset = { 0.0f, 0.0f, 0.0f };
 		const Vec3D unitCubeScale = { 2.0f, 2.0f, 2.0f };
@@ -617,6 +618,10 @@ int main(void)
 			nk_end(ctx);
 
 			nk_glfw3_render(&game.nuklear, NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+			glDisable(GL_BLEND);
+			glEnable(GL_CULL_FACE);
+			glEnable(GL_DEPTH_TEST);
+			glDisable(GL_SCISSOR_TEST);
 			PopRenderPassAnnotation();
 		}
 
