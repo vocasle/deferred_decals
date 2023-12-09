@@ -330,28 +330,29 @@ int main(void)
 	glDebugMessageCallback(MessageCallback, 0);
 
 	struct ModelProxy *unitCube = LoadModel("assets/unit_cube.obj");
-
 	Mat4X4 decalWorlds[2] = { 0 };
 	Mat4X4 decalInvWorlds[2] = { 0 };
 	struct Transform decalTransforms[2] = { 0 };
 	{
-		Vec3D unitCubeOffset = { 0.0f, 0.0f, 0.0f };
-		const Vec3D unitCubeScale = { 2.0f, 2.0f, 2.0f };
-		Mat4X4 scale = MathMat4X4ScaleFromVec3D(&unitCubeScale);
-		Mat4X4 world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
-		decalWorlds[0] = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
-		//unitCubeOffset.Z = -3.0f;
-		unitCubeOffset.Y = 1.0f;
-		unitCubeOffset.X = 2.0f;
-		
-		// Always orient decal so that Y faces outward of surface that decal is applied to
-		world = MathMat4X4TranslateFromVec3D(&unitCubeOffset);
-		//Mat4X4 rotate90 = MathMat4X4RotateX(MathToRadians(90.0f));
-		//world = MathMat4X4MultMat4X4ByMat4X4(&rotate90, &world);
-		decalWorlds[1] = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
+	  decalTransforms[0].scale.X = 2.0f;
+	  decalTransforms[0].scale.Y = 2.0f;
+	  decalTransforms[0].scale.Z = 2.0f;
+	  
+	  decalTransforms[1].translation.X = 2.0f;
+	  decalTransforms[1].translation.Y = 1.0f;
+	  decalTransforms[1].translation.Z = -3.0f;
+	  // Always orient decal so that Y faces outward of surface that decal is applied to
+	  decalTransforms[1].rotation.X = 90.0f;
 
-		decalInvWorlds[0] = MathMat4X4Inverse(&decalWorlds[0]);
-		decalInvWorlds[1] = MathMat4X4Inverse(&decalWorlds[1]);
+	  for (uint32_t i = 0; i < ARRAY_COUNT(decalTransforms); ++i) {
+	    const Mat4X4 translation = MathMat4X4TranslateFromVec3D(&decalTransforms[i].translation);
+	    const Mat4X4 rotation = MathMat4X4RotateFromVec3D(&decalTransforms[i].rotation);
+	    const Mat4X4 scale = MathMat4X4ScaleFromVec3D(&decalTransforms[i].scale);
+	    Mat4X4 world = MathMat4X4MultMat4X4ByMat4X4(&translation, &rotation);
+    	    world = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
+		decalWorlds[i] = world;
+		decalInvWorlds[i] = MathMat4X4Inverse(&decalWorlds[i]);
+	  }
 	}
 	
 	const Vec3D eyePos = { 4.633266f, 9.594514f, 6.876969f };
@@ -611,8 +612,27 @@ int main(void)
 				NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE |
 				NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 			{
-				nk_layout_row_static(ctx, 30, 180, 1);
-				nk_label(ctx, "Decal 1 transform:", NK_TEXT_ALIGN_LEFT);
+				nk_layout_row_dynamic(ctx, 30, 1);
+				for (uint32_t i = 0; i < ARRAY_COUNT(decalTransforms); ++i) {
+				  const char *label = UtilsFormatStr("Decal %u transform:", i);
+				  nk_label(ctx, label, NK_TEXT_ALIGN_LEFT);
+				  nk_label(ctx, UtilsFormatStr("Translation: %f %f %f",
+							       decalTransforms[i].translation.X,
+							       decalTransforms[i].translation.Y,
+							       decalTransforms[i].translation.Z),
+					   NK_TEXT_ALIGN_LEFT);
+  				  nk_label(ctx, UtilsFormatStr("Rotation: pitch: %f, yaw: %f, roll: %f",
+							       MathToDegrees(decalTransforms[i].translation.X),
+							       MathToDegrees(decalTransforms[i].translation.Y),
+							       MathToDegrees(decalTransforms[i].translation.Z)),
+					   NK_TEXT_ALIGN_LEFT);
+				  nk_label(ctx, UtilsFormatStr("Scale: %f %f %f",
+							       decalTransforms[i].scale.X,
+							       decalTransforms[i].scale.Y,
+							       decalTransforms[i].scale.Z),
+					   NK_TEXT_ALIGN_LEFT);
+				}
+
 				
 			}
 			nk_end(ctx);
