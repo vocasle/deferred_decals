@@ -189,6 +189,9 @@ void PushRenderPassAnnotation(const char* passName);
 
 void PopRenderPassAnnotation(void);
 
+void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,
+			   const struct Transform *decalTransforms, uint32_t numDecals);
+
 void DebugBreak()
 {
 #if _WIN32
@@ -334,25 +337,16 @@ int main(void)
 	Mat4X4 decalInvWorlds[2] = { 0 };
 	struct Transform decalTransforms[2] = { 0 };
 	{
-	  decalTransforms[0].scale.X = 2.0f;
-	  decalTransforms[0].scale.Y = 2.0f;
-	  decalTransforms[0].scale.Z = 2.0f;
-	  
+	  const Vec3D scale = { 2.0f, 2.0f, 2.0f };
+	  decalTransforms[0].scale = scale;
+	  decalTransforms[1].scale = scale;     
 	  decalTransforms[1].translation.X = 2.0f;
 	  decalTransforms[1].translation.Y = 1.0f;
 	  decalTransforms[1].translation.Z = -3.0f;
 	  // Always orient decal so that Y faces outward of surface that decal is applied to
-	  decalTransforms[1].rotation.X = 90.0f;
-
-	  for (uint32_t i = 0; i < ARRAY_COUNT(decalTransforms); ++i) {
-	    const Mat4X4 translation = MathMat4X4TranslateFromVec3D(&decalTransforms[i].translation);
-	    const Mat4X4 rotation = MathMat4X4RotateFromVec3D(&decalTransforms[i].rotation);
-	    const Mat4X4 scale = MathMat4X4ScaleFromVec3D(&decalTransforms[i].scale);
-	    Mat4X4 world = MathMat4X4MultMat4X4ByMat4X4(&translation, &rotation);
-    	    world = MathMat4X4MultMat4X4ByMat4X4(&world, &scale);
-		decalWorlds[i] = world;
-		decalInvWorlds[i] = MathMat4X4Inverse(&decalWorlds[i]);
-	  }
+	  decalTransforms[1].rotation.X = MathToRadians(90.0f);
+	  UpdateDecalTransforms(decalWorlds, decalInvWorlds,
+				decalTransforms, ARRAY_COUNT(decalTransforms));
 	}
 	
 	const Vec3D eyePos = { 4.633266f, 9.594514f, 6.876969f };
@@ -608,7 +602,7 @@ int main(void)
 		{
 			PushRenderPassAnnotation("Nuklear Pass");
 			struct nk_context* ctx = &game.nuklear.ctx;
-			if (nk_begin(ctx, "Options", nk_rect(50, 50, 230, 250),
+			if (nk_begin(ctx, "Options", nk_rect(50, 50, 530, 250),
 				NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE |
 				NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 			{
@@ -616,15 +610,18 @@ int main(void)
 				for (uint32_t i = 0; i < ARRAY_COUNT(decalTransforms); ++i) {
 				  const char *label = UtilsFormatStr("Decal %u transform:", i);
 				  nk_label(ctx, label, NK_TEXT_ALIGN_LEFT);
+				  nk_property_float(ctx, UtilsFormatStr("[%u] Translation X", i),
+						    -10.0f, &decalTransforms[i].translation.X,
+						    10.0f, 0.1f, 0.0f);
 				  nk_label(ctx, UtilsFormatStr("Translation: %f %f %f",
 							       decalTransforms[i].translation.X,
 							       decalTransforms[i].translation.Y,
 							       decalTransforms[i].translation.Z),
 					   NK_TEXT_ALIGN_LEFT);
   				  nk_label(ctx, UtilsFormatStr("Rotation: pitch: %f, yaw: %f, roll: %f",
-							       MathToDegrees(decalTransforms[i].translation.X),
-							       MathToDegrees(decalTransforms[i].translation.Y),
-							       MathToDegrees(decalTransforms[i].translation.Z)),
+							       MathToDegrees(decalTransforms[i].rotation.X),
+							       MathToDegrees(decalTransforms[i].rotation.Y),
+							       MathToDegrees(decalTransforms[i].rotation.Z)),
 					   NK_TEXT_ALIGN_LEFT);
 				  nk_label(ctx, UtilsFormatStr("Scale: %f %f %f",
 							       decalTransforms[i].scale.X,
@@ -632,7 +629,10 @@ int main(void)
 							       decalTransforms[i].scale.Z),
 					   NK_TEXT_ALIGN_LEFT);
 				}
-
+				if (nk_button_label(ctx, "Apply Transform")) {
+				  UpdateDecalTransforms(decalWorlds, decalInvWorlds,
+							decalTransforms, ARRAY_COUNT(decalTransforms));				  
+				}
 				
 			}
 			nk_end(ctx);
@@ -1334,4 +1334,18 @@ Mat4X4 TransformToMat4X4(const struct Transform *t)
 	Mat4X4 ret = MathMat4X4MultMat4X4ByMat4X4(&translation, &rotation);
 	ret = MathMat4X4MultMat4X4ByMat4X4(&ret, &scale);
 	return ret;
+}
+
+void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,
+			   const struct Transform *decalTransforms, uint32_t numDecals)
+{
+  for (uint32_t i = 0; i < numDecals; ++i) {
+    const Mat4X4 translation = MathMat4X4TranslateFromVec3D(&decalTransforms[i].translation);
+    const Mat4X4 rotation = MathMat4X4RotateFromVec3D(&decalTransforms[i].rotation);
+    const Mat4X4 scale = MathMat4X4ScaleFromVec3D(&decalTransforms[i].scale);
+    Mat4X4 world = MathMat4X4MultMat4X4ByMat4X4(&scale, &rotation);
+    world = MathMat4X4MultMat4X4ByMat4X4(&world, &translation);
+    decalWorlds[i] = world;
+    decalInvWorlds[i] = MathMat4X4Inverse(&decalWorlds[i]);
+  }
 }
