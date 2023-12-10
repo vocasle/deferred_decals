@@ -6,8 +6,6 @@ layout (location = 2) out vec4 gAlbedoSpec;
 uniform mat4 g_invViewProj;
 uniform mat4 g_decalInvWorld;
 uniform vec4 g_rtSize;
-uniform vec3 g_bboxMin;
-uniform vec3 g_bboxMax;
 uniform mat4 g_world;
 
 uniform sampler2D g_depth;
@@ -17,7 +15,6 @@ uniform sampler2D g_normal;
 in vec3 WorldPos;
 in vec2 TexCoords;
 in vec4 ClipPos;
-in mat3 TBN;
 
 vec3 WorldPosFromDepth(vec2 screenPos, float ndcDepth)
 {

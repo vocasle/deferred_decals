@@ -477,11 +477,6 @@ int main(void)
 					const Vec4D rtSize = { game.framebufferSize.width, game.framebufferSize.height,
 						1.0f / game.framebufferSize.width, 1.0f / game.framebufferSize.height };
 
-					const Vec3D bboxMin = { -1.0f, -1.0f, -1.0f };
-					const Vec3D bboxMax = { 1.0f, 1.0f, 1.0f };
-
-					SetUniform(deferredDecal, "g_bboxMin", sizeof(Vec3D), &bboxMin, UT_VEC3F);
-					SetUniform(deferredDecal, "g_bboxMax", sizeof(Vec3D), &bboxMax, UT_VEC3F);
 					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 					SetUniform(deferredDecal, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
 					SetUniform(deferredDecal, "g_depth", sizeof(int32_t), &C_DECAL_DEPTH_TEX_LOC, UT_INT);
