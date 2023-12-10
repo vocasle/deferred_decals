@@ -192,6 +192,10 @@ void PopRenderPassAnnotation(void);
 void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,
 			   const struct Transform *decalTransforms, uint32_t numDecals);
 
+void InitNuklear(GLFWwindow *window);
+
+void DeinitNuklear(GLFWwindow* window);
+
 void DebugBreak()
 {
 #if _WIN32
@@ -236,27 +240,6 @@ MessageCallback(GLenum source,
 
 int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight);
 
-void InitNuklear(GLFWwindow *window)
-{
-	struct Game* game = glfwGetWindowUserPointer(window);
-	nk_glfw3_init(&game->nuklear, window, NK_GLFW3_DEFAULT);
-	{
-		struct nk_font_atlas* atlas = NULL;
-		nk_glfw3_font_stash_begin(&game->nuklear, &atlas);
-
-		struct nk_font *droid = nk_font_atlas_add_from_file(atlas, 
-			UtilsFormatStr("%s/%s", RES_HOME, "fonts/DroidSans.ttf"), 22, 0);
-		nk_glfw3_font_stash_end(&game->nuklear);
-		nk_style_load_all_cursors(&game->nuklear.ctx, atlas->cursors);
-		nk_style_set_font(&game->nuklear.ctx, &droid->handle);
-	}
-}
-
-void DeinitNuklear(GLFWwindow* window)
-{
-	struct Game* game = glfwGetWindowUserPointer(window);
-	nk_glfw3_shutdown(&game->nuklear);
-}
 
 int main(void)
 {
@@ -291,8 +274,7 @@ int main(void)
 	    return -1;
 	}
 
-    glfwSetFramebufferSizeCallback(window, OnFramebufferResize);
-	
+    glfwSetFramebufferSizeCallback(window, OnFramebufferResize);	
     struct ModelProxy *modelProxy = LoadModel("assets/room.obj");
 	{
 		Mat4X4 rotate90 = MathMat4X4RotateY(MathToRadians(-90.0f));
@@ -633,6 +615,17 @@ int main(void)
 				  UpdateDecalTransforms(decalWorlds, decalInvWorlds,
 							decalTransforms, ARRAY_COUNT(decalTransforms));				  
 				}
+				nk_layout_row_dynamic(ctx, 25, 1);
+				if (nk_combo_begin_color(ctx, nk_rgb_cf(bg), nk_vec2(nk_widget_width(ctx),400))) {
+				  nk_layout_row_dynamic(ctx, 120, 1);
+				  bg = nk_color_picker(ctx, bg, NK_RGBA);
+				  nk_layout_row_dynamic(ctx, 25, 1);
+				  bg.r = nk_propertyf(ctx, "#R:", 0, bg.r, 1.0f, 0.01f,0.005f);
+				  bg.g = nk_propertyf(ctx, "#G:", 0, bg.g, 1.0f, 0.01f,0.005f);
+				  bg.b = nk_propertyf(ctx, "#B:", 0, bg.b, 1.0f, 0.01f,0.005f);
+				  bg.a = nk_propertyf(ctx, "#A:", 0, bg.a, 1.0f, 0.01f,0.005f);
+				  nk_combo_end(ctx);
+				}				
 				
 			}
 			nk_end(ctx);
@@ -1277,7 +1270,7 @@ void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat
 	}
 
 	const int loc = UtilStrFindLastChar(texPath, '/');
-	t->name = strdup(texPath + loc + 1);
+	t->name = _strdup(texPath + loc + 1);
 
 	UtilsDebugPrint("Loaded %s: %dx%d, channels: %d", t->name, t->width, t->height,
 			channelsInFile);
@@ -1348,4 +1341,33 @@ void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,
     decalWorlds[i] = world;
     decalInvWorlds[i] = MathMat4X4Inverse(&decalWorlds[i]);
   }
+}
+
+struct nk_glfw *GetNuklearGLFW(GLFWwindow *w)
+{
+  struct Game *game = glfwGetWindowUserPointer(w);
+  return &game->nuklear;
+}
+
+void InitNuklear(GLFWwindow *window)
+{
+	struct Game* game = glfwGetWindowUserPointer(window);
+	nk_glfw3_init(&game->nuklear, window, NK_GLFW3_INSTALL_CALLBACKS);
+	{
+		struct nk_font_atlas* atlas = NULL;
+		nk_glfw3_font_stash_begin(&game->nuklear, &atlas);
+
+		struct nk_font *droid = nk_font_atlas_add_from_file(atlas, 
+			UtilsFormatStr("%s/%s", RES_HOME, "fonts/DroidSans.ttf"), 22, 0);
+		nk_glfw3_font_stash_end(&game->nuklear);
+		nk_style_load_all_cursors(&game->nuklear.ctx, atlas->cursors);
+		nk_style_set_font(&game->nuklear.ctx, &droid->handle);
+	}
+
+}
+
+void DeinitNuklear(GLFWwindow* window)
+{
+	struct Game* game = glfwGetWindowUserPointer(window);
+	nk_glfw3_shutdown(&game->nuklear);
 }
