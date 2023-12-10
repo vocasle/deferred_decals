@@ -14,19 +14,10 @@ uniform sampler2D g_depth;
 uniform sampler2D g_albedo;
 uniform sampler2D g_normal;
 
-uniform int g_gbufferDebugMode;
-
-#define GDM_VERTEX_NORMAL 1
-#define GDM_TANGENT 2
-#define GDM_BITANGENT 3
-#define GDM_NORMAL_MAP 4
-#define GDM_ALBEDO 5
-#define GDM_POSITION 6
-
 in vec3 WorldPos;
 in vec2 TexCoords;
 in vec4 ClipPos;
-
+in mat3 TBN;
 
 vec3 WorldPosFromDepth(vec2 screenPos, float ndcDepth)
 {
@@ -58,27 +49,15 @@ void main()
 		discard;
 	}
 	else {
-		mat3 TBN = mat3(normalize(g_world[0]), normalize(g_world[1]), normalize(g_world[2]));
+		vec3 T = vec3(1.0, 0.0, 0.0);
+		vec3 B = vec3(0.0, 0.0, 1.0);
+		vec3 N = vec3(0.0, 1.0, 0.0);
+		mat3 localTBN = mat3(T, B, N);
 		vec3 normalTS = texture(g_normal, decalUV).xyz * 2.0 - 1.0;
-		vec3 normal = transpose(TBN) * normalTS;
-		normal = normalize(normal);
+		vec3 normal = localTBN * normalTS;
+		normal = mat3(g_world) * normalize(normal);
 		vec3 albedo = texture(g_albedo, decalUV).rgb;
 		float roughness = 1.0;
-
-		
-		if (g_gbufferDebugMode == GDM_VERTEX_NORMAL) {
-			albedo = normalize(TBN[2]);
-		}
-		else if (g_gbufferDebugMode == GDM_TANGENT) {
-			albedo = normalize(TBN[0]);
-		}
-		else if (g_gbufferDebugMode == GDM_BITANGENT) {
-			albedo = normalize(TBN[1]);
-		}
-		else if (g_gbufferDebugMode == GDM_NORMAL_MAP) {
-			albedo = normalTS;
-		}
-
 		gAlbedoSpec = vec4(albedo, roughness);
 		gNormal = normalize(normal);
 	}

@@ -15,6 +15,8 @@
 
 .cache/clangd/index/objloader.h.583231073608FB35.idx,0
 
+.github/workflows/cmake-single-platform.yml,0
+
 build/.ninja_deps,0
 
 build/.ninja_log,0
@@ -786,11 +788,7 @@ res/shaders/gbuffer_frag.glsl,0
 
 res/shaders/vert.glsl,0
 
-src/#decals.c#,0
-
-src/.#decals.c,0
-
-src/decals.c,14848
+src/decals.c,7573
 #define STB_IMAGE_IMPLEMENTATIONSTB_IMAGE_IMPLEMENTATION7,112
 #define NK_INCLUDE_FIXED_TYPESNK_INCLUDE_FIXED_TYPES15,266
 #define NK_INCLUDE_STANDARD_IONK_INCLUDE_STANDARD_IO16,298
@@ -887,206 +885,52 @@ struct Game {Game133,2259
 	uint32_t numTextures;numTextures140,2495
 	struct Camera camera;camera141,2519
 	struct nk_glfw nuklear;nuklear142,2543
-struct CalculateTangetData {CalculateTangetData167,3473
-	struct Vertex *vertices;vertices168,3503
-	uint32_t numVertices;numVertices169,3530
-	const uint32_t *indices;indices170,3554
-	uint32_t numIndices;numIndices171,3581
-void DebugBreak()DebugBreak195,4330
-#define GLCHECK(GLCHECK204,4421
-#define ARRAY_COUNT(ARRAY_COUNT215,4656
-MessageCallback(GLenum source,MessageCallback218,4736
-void InitNuklear(GLFWwindow *window)InitNuklear239,5382
-void DeinitNuklear(GLFWwindow* window)DeinitNuklear255,5947
-int main(void)main261,6088
-	const Vec3D eyePos = { 4.633266f, 9.594514f, 6.876969f };eyePos353,8846
-	const float zNear = 0.1f;zNear354,8906
-	const float zFar = 1000.0f;zFar355,8934
-	const Vec3D g_lightPos = { 0.0, 10.0, 0.0 };g_lightPos361,9121
-	struct FullscreenQuadPass fsqPass = { 0 };fsqPass365,9259
-	const char *albedoTexturePaths[] = {albedoTexturePaths368,9369
-	const char *normalTexturesPaths[] = {normalTexturesPaths374,9637
-	const char *roughnessTexturePaths[] = {roughnessTexturePaths380,9914
-	for (uint32_t i = 0; i < ARRAY_COUNT(albedoTexturePaths); ++i) {i394,10747
-	const int32_t C_ALBEDO_TEX_LOC = 0;C_ALBEDO_TEX_LOC400,11136
-	const int32_t C_NORMAL_TEX_LOC = 1;C_NORMAL_TEX_LOC401,11174
-	const int32_t C_ROUGHNESS_TEX_LOC = 2;C_ROUGHNESS_TEX_LOC402,11212
-	const int32_t C_DECAL_DEPTH_TEX_LOC = 0;C_DECAL_DEPTH_TEX_LOC403,11253
-	const int32_t C_DECAL_ALBEDO_TEX_LOC = 1;C_DECAL_ALBEDO_TEX_LOC404,11296
-	const int32_t C_DECAL_NORMAL_TEX_LOC = 2;C_DECAL_NORMAL_TEX_LOC405,11340
-	const uint32_t C_DECAL_TBN_TANGENT_TEX_LOC = 3;C_DECAL_TBN_TANGENT_TEX_LOC406,11384
-	const uint32_t C_DECAL_TBN_BITANGENT_TEX_LOC = 4;C_DECAL_TBN_BITANGENT_TEX_LOC407,11434
-	const uint32_t C_DECAL_TBN_NORMAL_TEX_LOC = 5;C_DECAL_TBN_NORMAL_TEX_LOC408,11486
-	const int32_t C_WOOD_TEX_IDX = 0;C_WOOD_TEX_IDX409,11535
-	const int32_t C_RUSTY_METAL_TEX_IDX = 1;C_RUSTY_METAL_TEX_IDX410,11571
-	const int32_t C_BRICKS_TEX_IDX = 2;C_BRICKS_TEX_IDX411,11614
-	const int32_t DECAL_TEXTURE_INDICES[2] = { C_WOOD_TEX_IDX, C_BRICKS_TEX_IDX };DECAL_TEXTURE_INDICES412,11652
-	struct nk_colorf bg = { 0.10f, 0.18f, 0.24f, 1.0f };bg419,11810
-				for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {i446,12997
-				for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {i479,14436
-					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.view, &game.camera.proj);viewProj489,14973
-					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);invViewProj490,15071
-					const Vec4D rtSize = { game.framebufferSize.width, game.framebufferSize.height,rtSize492,15136
-					const Vec3D bboxMin = { -1.0f, -1.0f, -1.0f };bboxMin495,15304
-					const Vec3D bboxMax = { 1.0f, 1.0f, 1.0f };bboxMax496,15357
-					for (uint32_t n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {n517,16989
-			const uint32_t g_position = 0;g_position554,18675
-			const uint32_t g_normal = 1;g_normal555,18710
-			const uint32_t g_albedo = 2;g_albedo556,18743
-			static const int isWireframe = 1;isWireframe587,20531
-			for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {i591,20698
-				for (uint32_t n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {n593,20804
-			struct nk_context* ctx = &game.nuklear.ctx;ctx605,21207
-				for (uint32_t i = 0; i < ARRAY_COUNT(decalTransforms); ++i) {i611,21473
-				  const char *label = UtilsFormatStr("Decal %u transform:", i);label612,21540
-#define STB_IMAGE_IMPLEMENTATIONSTB_IMAGE_IMPLEMENTATION7,112
-#define NK_INCLUDE_FIXED_TYPESNK_INCLUDE_FIXED_TYPES15,266
-#define NK_INCLUDE_STANDARD_IONK_INCLUDE_STANDARD_IO16,298
-#define NK_INCLUDE_STANDARD_VARARGSNK_INCLUDE_STANDARD_VARARGS17,330
-#define NK_INCLUDE_DEFAULT_ALLOCATORNK_INCLUDE_DEFAULT_ALLOCATOR18,367
-#define NK_INCLUDE_VERTEX_BUFFER_OUTPUTNK_INCLUDE_VERTEX_BUFFER_OUTPUT19,405
-#define NK_INCLUDE_FONT_BAKINGNK_INCLUDE_FONT_BAKING20,446
-#define NK_INCLUDE_DEFAULT_FONTNK_INCLUDE_DEFAULT_FONT21,478
-#define NK_IMPLEMENTATIONNK_IMPLEMENTATION22,511
-#define NK_GLFW_GL3_IMPLEMENTATIONNK_GLFW_GL3_IMPLEMENTATION23,538
-#define NK_KEYSTATE_BASED_INPUTNK_KEYSTATE_BASED_INPUT24,574
-#define MAX_VERTEX_BUFFER MAX_VERTEX_BUFFER28,678
-#define MAX_ELEMENT_BUFFER MAX_ELEMENT_BUFFER29,716
-	__declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;NvOptimusEnablement32,769
-	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;AmdPowerXpressRequestHighPerformance33,841
-struct Transform {Transform36,921
-	Vec3D translation;translation37,941
-	Vec3D rotation;rotation38,962
-	Vec3D scale;scale39,980
-struct File {File42,1001
-	char *contents;contents43,1016
-	uint64_t size;size44,1034
-struct Vertex {Vertex47,1057
-	Vec3D position;position48,1074
-	Vec3D normal;normal49,1092
-	Vec2D texCoords;texCoords50,1108
-	Vec4D tangent;tangent51,1127
-struct MeshProxy {MeshProxy54,1150
-	uint32_t vao;vao55,1170
-	uint32_t vbo;vbo56,1186
-	uint32_t ebo;ebo57,1202
-	uint32_t numIndices;numIndices58,1218
-	Mat4X4 world;world59,1241
-struct ModelProxy {ModelProxy62,1263
-	struct MeshProxy *meshes;meshes63,1284
-	uint32_t numMeshes;numMeshes64,1312
-enum UniformType {UniformType67,1340
-	UT_MAT4,UT_MAT468,1360
-	UT_VEC4F,UT_VEC4F69,1371
-	UT_VEC3F,UT_VEC3F70,1383
-	UT_VEC2F,UT_VEC2F71,1395
-	UT_FLOAT,UT_FLOAT72,1407
-	UT_INT,UT_INT73,1419
-	UT_UINT,UT_UINT74,1429
-enum ObjectIdentifier {ObjectIdentifier77,1446
-	OI_BUFFER,OI_BUFFER78,1471
-	OI_SHADER,OI_SHADER79,1484
-	OI_PROGRAM,OI_PROGRAM80,1497
-	OI_VERTEX_ARRAY,OI_VERTEX_ARRAY81,1511
-	OI_QUERY,OI_QUERY82,1530
-	OI_PROGRAM_PIPELINE,OI_PROGRAM_PIPELINE83,1542
-	OI_TRANSFORM_FEEDBACK,OI_TRANSFORM_FEEDBACK84,1565
-	OI_SAMPLER,OI_SAMPLER85,1590
-	OI_TEXTURE,OI_TEXTURE86,1604
-	OI_RENDERBUFFER,OI_RENDERBUFFER87,1618
-	OI_FRAMEBUFFER,OI_FRAMEBUFFER88,1637
-enum GBufferDebugMode {GBufferDebugMode91,1661
-	GDM_NONE,GDM_NONE92,1686
-	GDM_NORMAL_MAP,GDM_NORMAL_MAP93,1698
-	GDM_ALBEDO,GDM_ALBEDO94,1716
-	GDM_POSITION,GDM_POSITION95,1730
-struct GBuffer {GBuffer98,1752
-	uint32_t position;position99,1770
-	uint32_t normal;normal100,1791
-	uint32_t albedo;albedo101,1810
-	uint32_t framebuffer;framebuffer102,1829
-	uint32_t depthBuffer;depthBuffer103,1853
-	uint32_t gbufferDepthTex;gbufferDepthTex104,1877
-struct FullscreenQuadPass {FullscreenQuadPass107,1911
-	uint32_t vbo;vbo108,1940
-	uint32_t vao;vao109,1956
-struct FramebufferSize {FramebufferSize112,1978
-	int width;width113,2004
-	int height;height114,2017
-struct Texture2D {Texture2D117,2037
-	int32_t width;width118,2057
-	int32_t height;height119,2074
-	char *name;name120,2092
-	uint32_t handle;handle121,2106
-	int32_t samplerLocation;samplerLocation122,2125
-struct Camera {Camera125,2158
-	Mat4X4 view;view126,2175
-	Mat4X4 proj;proj127,2190
-	Vec3D position;position128,2205
-	Vec3D right;right129,2223
-	Vec3D front;front130,2238
-struct Game {Game133,2259
-	struct GBuffer gbuffer;gbuffer134,2274
-	struct FramebufferSize framebufferSize;framebufferSize135,2300
-	enum GBufferDebugMode gbufferDebugMode;gbufferDebugMode136,2342
-	struct Texture2D *albedoTextures;albedoTextures137,2384
-	struct Texture2D *normalTextures;normalTextures138,2420
-	struct Texture2D *roughnessTextures;roughnessTextures139,2456
-	uint32_t numTextures;numTextures140,2495
-	struct Camera camera;camera141,2519
-	struct nk_glfw nuklear;nuklear142,2543
-struct CalculateTangetData {CalculateTangetData167,3473
-	struct Vertex *vertices;vertices168,3503
-	uint32_t numVertices;numVertices169,3530
-	const uint32_t *indices;indices170,3554
-	uint32_t numIndices;numIndices171,3581
-void DebugBreak()DebugBreak195,4330
-#define GLCHECK(GLCHECK204,4421
-#define ARRAY_COUNT(ARRAY_COUNT215,4656
-MessageCallback(GLenum source,MessageCallback218,4736
-void InitNuklear(GLFWwindow *window)InitNuklear239,5382
-void DeinitNuklear(GLFWwindow* window)DeinitNuklear255,5947
-int main(void)main261,6088
-	const Vec3D eyePos = { 4.633266f, 9.594514f, 6.876969f };eyePos353,8846
-	const float zNear = 0.1f;zNear354,8906
-	const float zFar = 1000.0f;zFar355,8934
-	const Vec3D g_lightPos = { 0.0, 10.0, 0.0 };g_lightPos361,9121
-	struct FullscreenQuadPass fsqPass = { 0 };fsqPass365,9259
-	const char *albedoTexturePaths[] = {albedoTexturePaths368,9369
-	const char *normalTexturesPaths[] = {normalTexturesPaths374,9637
-	const char *roughnessTexturePaths[] = {roughnessTexturePaths380,9914
-	for (uint32_t i = 0; i < ARRAY_COUNT(albedoTexturePaths); ++i) {i394,10747
-	const int32_t C_ALBEDO_TEX_LOC = 0;C_ALBEDO_TEX_LOC400,11136
-	const int32_t C_NORMAL_TEX_LOC = 1;C_NORMAL_TEX_LOC401,11174
-	const int32_t C_ROUGHNESS_TEX_LOC = 2;C_ROUGHNESS_TEX_LOC402,11212
-	const int32_t C_DECAL_DEPTH_TEX_LOC = 0;C_DECAL_DEPTH_TEX_LOC403,11253
-	const int32_t C_DECAL_ALBEDO_TEX_LOC = 1;C_DECAL_ALBEDO_TEX_LOC404,11296
-	const int32_t C_DECAL_NORMAL_TEX_LOC = 2;C_DECAL_NORMAL_TEX_LOC405,11340
-	const uint32_t C_DECAL_TBN_TANGENT_TEX_LOC = 3;C_DECAL_TBN_TANGENT_TEX_LOC406,11384
-	const uint32_t C_DECAL_TBN_BITANGENT_TEX_LOC = 4;C_DECAL_TBN_BITANGENT_TEX_LOC407,11434
-	const uint32_t C_DECAL_TBN_NORMAL_TEX_LOC = 5;C_DECAL_TBN_NORMAL_TEX_LOC408,11486
-	const int32_t C_WOOD_TEX_IDX = 0;C_WOOD_TEX_IDX409,11535
-	const int32_t C_RUSTY_METAL_TEX_IDX = 1;C_RUSTY_METAL_TEX_IDX410,11571
-	const int32_t C_BRICKS_TEX_IDX = 2;C_BRICKS_TEX_IDX411,11614
-	const int32_t DECAL_TEXTURE_INDICES[2] = { C_WOOD_TEX_IDX, C_BRICKS_TEX_IDX };DECAL_TEXTURE_INDICES412,11652
-	struct nk_colorf bg = { 0.10f, 0.18f, 0.24f, 1.0f };bg419,11810
-				for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {i446,12997
-				for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {i479,14436
-					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.view, &game.camera.proj);viewProj489,14973
-					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);invViewProj490,15071
-					const Vec4D rtSize = { game.framebufferSize.width, game.framebufferSize.height,rtSize492,15136
-					const Vec3D bboxMin = { -1.0f, -1.0f, -1.0f };bboxMin495,15304
-					const Vec3D bboxMax = { 1.0f, 1.0f, 1.0f };bboxMax496,15357
-					for (uint32_t n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {n517,16989
-			const uint32_t g_position = 0;g_position554,18675
-			const uint32_t g_normal = 1;g_normal555,18710
-			const uint32_t g_albedo = 2;g_albedo556,18743
-			static const int isWireframe = 1;isWireframe587,20531
-			for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {i591,20698
-				for (uint32_t n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {n593,20804
-			struct nk_context* ctx = &game.nuklear.ctx;ctx605,21207
-				for (uint32_t i = 0; i < ARRAY_COUNT(decalTransforms); ++i) {i611,21473
-				  const char *label = UtilsFormatStr("Decal %u transform:", i);label612,21540
+struct CalculateTangetData {CalculateTangetData167,3472
+	struct Vertex *vertices;vertices168,3502
+	uint32_t numVertices;numVertices169,3529
+	const uint32_t *indices;indices170,3553
+	uint32_t numIndices;numIndices171,3580
+void DebugBreak()DebugBreak199,4413
+#define GLCHECK(GLCHECK208,4504
+#define ARRAY_COUNT(ARRAY_COUNT219,4739
+MessageCallback(GLenum source,MessageCallback222,4819
+int main(void)main244,5466
+int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle)CreateProgram636,22871
+struct File LoadShader(const char *shaderName)LoadShader661,23497
+int CompileShader(const struct File *shader, int shaderType,CompileShader689,24164
+int LinkProgram(const uint32_t vs, const uint32_t fs,LinkProgram712,24854
+void OnFramebufferResize(GLFWwindow *window, int width,OnFramebufferResize735,25481
+struct ModelProxy *LoadModel(const char *filename)LoadModel745,25787
+void PrintModelToFile(const struct Model *m)PrintModelToFile765,26407
+void ValidateModelProxy(const struct ModelProxy *m)ValidateModelProxy791,27181
+struct ModelProxy *CreateModelProxy(const struct Model *m)CreateModelProxy799,27444
+uint32_t GetUniformLocation(uint32_t programHandle, const char *name)GetUniformLocation885,30968
+void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const void *data, enum SetUniform891,31130
+double GetDeltaTime()GetDeltaTime917,31851
+uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,CreateTexture2D926,32017
+void InitQuadPass(struct FullscreenQuadPass *fsqPass)InitQuadPass962,33126
+void RenderQuad(const struct FullscreenQuadPass *fsqPass)RenderQuad983,33912
+int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)InitGBuffer990,34088
+void GetNormal(const SMikkTSpaceContext * pContext, float fvNormOut[], const int iFace, const inGetNormal1030,35789
+void GetPosition(const SMikkTSpaceContext * pContext, float fvPosOut[], const int iFace, const iGetPosition1038,36146
+void GetTexCoords(const SMikkTSpaceContext * pContext, float fvTexcOut[], const int iFace, constGetTexCoords1046,36507
+int GetNumVerticesOfFace(const SMikkTSpaceContext * pContext, const int iFace)GetNumVerticesOfFace1054,36814
+void SetTSpaceBasic(const SMikkTSpaceContext * pContext, const float fvTangent[],SetTSpaceBasic1059,36914
+int GetNumFaces(const SMikkTSpaceContext * pContext)GetNumFaces1069,37362
+void CalculateTangentArray(struct CalculateTangetData *data)CalculateTangentArray1075,37515
+void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name, const char *label)SetObjectName1089,38013
+int IsKeyPressed(GLFWwindow *window, int key)IsKeyPressed1144,39429
+void ProcessInput(GLFWwindow* window)ProcessInput1150,39583
+void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat,Texture2D_Load1232,43093
+void Camera_Init(struct Camera *camera, const Vec3D *position,Camera_Init1261,44214
+void Game_Update(struct Game *game)Game_Update1275,44795
+void PushRenderPassAnnotation(const char* passName)PushRenderPassAnnotation1283,45086
+void PopRenderPassAnnotation(void)PopRenderPassAnnotation1288,45227
+Mat4X4 TransformToMat4X4(const struct Transform *t)TransformToMat4X41293,45292
+void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,UpdateDecalTransforms1303,45692
+struct nk_glfw *GetNuklearGLFW(GLFWwindow *w)GetNuklearGLFW1320,46535
+void InitNuklear(GLFWwindow *window)InitNuklear1326,46668
+void DeinitNuklear(GLFWwindow* window)DeinitNuklear1343,47244
 
 src/mymath.c,5543
 #define EPSILON EPSILON13,203
@@ -26046,65 +25890,65 @@ nk_tooltip(struct nk_context *ctx, const char *text)nk_tooltip29880,1177934
 nk_tooltipf(struct nk_context *ctx, const char *fmt, ...)nk_tooltipf29916,1179022
 nk_tooltipfv(struct nk_context *ctx, const char *fmt, va_list args)nk_tooltipfv29924,1179199
 
-thirdparty/nuklear/nuklear_glfw_gl3.h,3371
+thirdparty/nuklear/nuklear_glfw_gl3.h,3372
 #define NK_GLFW_GL3_H_NK_GLFW_GL3_H_14,350
 enum nk_glfw_init_state{nk_glfw_init_state18,403
     NK_GLFW3_DEFAULT=0,NK_GLFW3_DEFAULT19,429
     NK_GLFW3_INSTALL_CALLBACKSNK_GLFW3_INSTALL_CALLBACKS20,454
 #define NK_GLFW_TEXT_MAX NK_GLFW_TEXT_MAX24,518
-struct nk_glfw_device {nk_glfw_device27,558
-    struct nk_buffer cmds;cmds28,583
-    struct nk_draw_null_texture tex_null;tex_null29,611
-    GLuint vbo, vao, ebo;vbo30,654
-    GLuint vbo, vao, ebo;vao30,654
-    GLuint vbo, vao, ebo;ebo30,654
-    GLuint prog;prog31,681
-    GLuint vert_shdr;vert_shdr32,699
-    GLuint frag_shdr;frag_shdr33,722
-    GLint attrib_pos;attrib_pos34,745
-    GLint attrib_uv;attrib_uv35,768
-    GLint attrib_col;attrib_col36,790
-    GLint uniform_tex;uniform_tex37,813
-    GLint uniform_proj;uniform_proj38,837
-    GLuint font_tex;font_tex39,862
-struct nk_glfw {nk_glfw42,890
-    GLFWwindow *win;win43,908
-    int width, height;width44,930
-    int width, height;height44,930
-    int display_width, display_height;display_width45,954
-    int display_width, display_height;display_height45,954
-    struct nk_glfw_device ogl;ogl46,994
-    struct nk_context ctx;ctx47,1026
-    struct nk_font_atlas atlas;atlas48,1054
-    struct nk_vec2 fb_scale;fb_scale49,1087
-    unsigned int text[NK_GLFW_TEXT_MAX];text50,1117
-    int text_len;text_len51,1159
-    struct nk_vec2 scroll;scroll52,1178
-    double last_button_click;last_button_click53,1206
-    int is_double_click_down;is_double_click_down54,1237
-    struct nk_vec2 double_click_pos;double_click_pos55,1268
-#define NK_GLFW_DOUBLE_CLICK_LO NK_GLFW_DOUBLE_CLICK_LO83,2618
-#define NK_GLFW_DOUBLE_CLICK_HI NK_GLFW_DOUBLE_CLICK_HI86,2697
-struct nk_glfw_vertex {nk_glfw_vertex89,2744
-    float position[2];position90,2769
-    float uv[2];uv91,2793
-    nk_byte col[4];col92,2811
-  #define NK_SHADER_VERSION NK_SHADER_VERSION96,2856
-  #define NK_SHADER_VERSION NK_SHADER_VERSION98,2909
-nk_glfw3_device_create(struct nk_glfw* glfw)nk_glfw3_device_create102,2981
-nk_glfw3_device_upload_atlas(struct nk_glfw* glfw, const void *image, int width, int height)nk_glfw3_device_upload_atlas185,6220
-nk_glfw3_device_destroy(struct nk_glfw* glfw)nk_glfw3_device_destroy197,6745
-nk_glfw3_render(struct nk_glfw* glfw, enum nk_anti_aliasing AA, int max_vertex_buffer, int max_enk_glfw3_render212,7209
-nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint)nk_glfw3_char_callback312,11509
-nk_gflw3_scroll_callback(GLFWwindow *win, double xoff, double yoff)nk_gflw3_scroll_callback320,11749
-nk_glfw3_mouse_button_callback(GLFWwindow* win, int button, int action, int mods)nk_glfw3_mouse_button_callback329,11987
-nk_glfw3_clipboard_paste(nk_handle usr, struct nk_text_edit *edit)nk_glfw3_clipboard_paste347,12683
-nk_glfw3_clipboard_copy(nk_handle usr, const char *text, int len)nk_glfw3_clipboard_copy356,12967
-nk_glfw3_init(struct nk_glfw* glfw, GLFWwindow *win, enum nk_glfw_init_state init_state)nk_glfw3_init370,13350
-nk_glfw3_font_stash_begin(struct nk_glfw* glfw, struct nk_font_atlas **atlas)nk_glfw3_font_stash_begin393,14167
-nk_glfw3_font_stash_end(struct nk_glfw* glfw)nk_glfw3_font_stash_end401,14382
-nk_glfw3_new_frame(struct nk_glfw* glfw)nk_glfw3_new_frame412,14823
-void nk_glfw3_shutdown(struct nk_glfw* glfw)nk_glfw3_shutdown491,19250
+struct nk_glfw_device {nk_glfw_device28,560
+    struct nk_buffer cmds;cmds29,585
+    struct nk_draw_null_texture tex_null;tex_null30,613
+    GLuint vbo, vao, ebo;vbo31,656
+    GLuint vbo, vao, ebo;vao31,656
+    GLuint vbo, vao, ebo;ebo31,656
+    GLuint prog;prog32,683
+    GLuint vert_shdr;vert_shdr33,701
+    GLuint frag_shdr;frag_shdr34,724
+    GLint attrib_pos;attrib_pos35,747
+    GLint attrib_uv;attrib_uv36,770
+    GLint attrib_col;attrib_col37,792
+    GLint uniform_tex;uniform_tex38,815
+    GLint uniform_proj;uniform_proj39,839
+    GLuint font_tex;font_tex40,864
+struct nk_glfw {nk_glfw43,892
+    GLFWwindow *win;win44,910
+    int width, height;width45,932
+    int width, height;height45,932
+    int display_width, display_height;display_width46,956
+    int display_width, display_height;display_height46,956
+    struct nk_glfw_device ogl;ogl47,996
+    struct nk_context ctx;ctx48,1028
+    struct nk_font_atlas atlas;atlas49,1056
+    struct nk_vec2 fb_scale;fb_scale50,1089
+    unsigned int text[NK_GLFW_TEXT_MAX];text51,1119
+    int text_len;text_len52,1161
+    struct nk_vec2 scroll;scroll53,1180
+    double last_button_click;last_button_click54,1208
+    int is_double_click_down;is_double_click_down55,1239
+    struct nk_vec2 double_click_pos;double_click_pos56,1270
+#define NK_GLFW_DOUBLE_CLICK_LO NK_GLFW_DOUBLE_CLICK_LO86,2670
+#define NK_GLFW_DOUBLE_CLICK_HI NK_GLFW_DOUBLE_CLICK_HI89,2749
+struct nk_glfw_vertex {nk_glfw_vertex92,2796
+    float position[2];position93,2821
+    float uv[2];uv94,2845
+    nk_byte col[4];col95,2863
+  #define NK_SHADER_VERSION NK_SHADER_VERSION99,2908
+  #define NK_SHADER_VERSION NK_SHADER_VERSION101,2961
+nk_glfw3_device_create(struct nk_glfw* glfw)nk_glfw3_device_create105,3033
+nk_glfw3_device_upload_atlas(struct nk_glfw* glfw, const void *image, int width, int height)nk_glfw3_device_upload_atlas188,6272
+nk_glfw3_device_destroy(struct nk_glfw* glfw)nk_glfw3_device_destroy200,6797
+nk_glfw3_render(struct nk_glfw* glfw, enum nk_anti_aliasing AA, int max_vertex_buffer, int max_enk_glfw3_render215,7261
+nk_glfw3_char_callback(GLFWwindow *win, unsigned int codepoint)nk_glfw3_char_callback315,11561
+nk_gflw3_scroll_callback(GLFWwindow *win, double xoff, double yoff)nk_gflw3_scroll_callback323,11791
+nk_glfw3_mouse_button_callback(GLFWwindow* win, int button, int action, int mods)nk_glfw3_mouse_button_callback332,12019
+nk_glfw3_clipboard_paste(nk_handle usr, struct nk_text_edit *edit)nk_glfw3_clipboard_paste350,12705
+nk_glfw3_clipboard_copy(nk_handle usr, const char *text, int len)nk_glfw3_clipboard_copy359,12989
+nk_glfw3_init(struct nk_glfw* glfw, GLFWwindow *win, enum nk_glfw_init_state init_state)nk_glfw3_init373,13372
+nk_glfw3_font_stash_begin(struct nk_glfw* glfw, struct nk_font_atlas **atlas)nk_glfw3_font_stash_begin396,14192
+nk_glfw3_font_stash_end(struct nk_glfw* glfw)nk_glfw3_font_stash_end404,14407
+nk_glfw3_new_frame(struct nk_glfw* glfw)nk_glfw3_new_frame415,14848
+void nk_glfw3_shutdown(struct nk_glfw* glfw)nk_glfw3_shutdown494,19275
 
 thirdparty/stb_image.h,41087
 #define STBI_INCLUDE_STB_IMAGE_HSTBI_INCLUDE_STB_IMAGE_H128,6461

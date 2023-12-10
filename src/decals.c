@@ -144,7 +144,7 @@ struct Game {
 
 struct File LoadShader(const char *shaderName);
 int LinkProgram(const uint32_t vs, const uint32_t fs, uint32_t *pHandle);
-int CompileShader(const struct File *shader, int shaderType, 
+int CompileShader(const struct File *shader, int shaderType,
 		uint32_t *pHandle);
 void OnFramebufferResize(GLFWwindow *window, int width, int height);
 
@@ -232,7 +232,7 @@ MessageCallback(GLenum source,
 			(type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
 			type, severity, message);
 	}
-	
+
 	if (type == GL_DEBUG_TYPE_ERROR) {
 		exit(-1);
 	}
@@ -274,7 +274,7 @@ int main(void)
 	    return -1;
 	}
 
-    glfwSetFramebufferSizeCallback(window, OnFramebufferResize);	
+    glfwSetFramebufferSizeCallback(window, OnFramebufferResize);
     struct ModelProxy *modelProxy = LoadModel("assets/room.obj");
 	{
 		Mat4X4 rotate90 = MathMat4X4RotateY(MathToRadians(-90.0f));
@@ -321,16 +321,16 @@ int main(void)
 	{
 	  const Vec3D scale = { 2.0f, 2.0f, 2.0f };
 	  decalTransforms[0].scale = scale;
-	  decalTransforms[1].scale = scale;     
+	  decalTransforms[1].scale = scale;
 	  decalTransforms[1].translation.X = 2.0f;
-	  decalTransforms[1].translation.Y = 1.0f;
-	  decalTransforms[1].translation.Z = -3.0f;
+	  decalTransforms[1].translation.Y = 5.0f;
+	  decalTransforms[1].translation.Z = -9.0f;
 	  // Always orient decal so that Y faces outward of surface that decal is applied to
 	  decalTransforms[1].rotation.X = 90.0f;
 	  UpdateDecalTransforms(decalWorlds, decalInvWorlds,
 				decalTransforms, ARRAY_COUNT(decalTransforms));
 	}
-	
+
 	const Vec3D eyePos = { 4.633266f, 9.594514f, 6.876969f };
 	const float zNear = 0.1f;
 	const float zFar = 1000.0f;
@@ -398,7 +398,7 @@ int main(void)
 
 	InitNuklear(window);
 	struct nk_colorf bg = { 0.10f, 0.18f, 0.24f, 1.0f };
-	
+
     /* Loop until the user closes the window */
     while(!glfwWindowShouldClose(window))
     {
@@ -450,7 +450,7 @@ int main(void)
 				// Copy gbuffer depth
 				{
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
-					GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, 
+					GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,
 							game.framebufferSize.width, game.framebufferSize.height));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
 				}
@@ -530,7 +530,7 @@ int main(void)
 			SetUniform(deferredProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			SetUniform(deferredProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 			SetUniform(deferredProgram, "g_gbufferDebugMode", sizeof(int32_t),
-					&game.gbufferDebugMode, UT_INT); 
+					&game.gbufferDebugMode, UT_INT);
 
 			const uint32_t g_position = 0;
 			const uint32_t g_normal = 1;
@@ -542,16 +542,16 @@ int main(void)
 			PopRenderPassAnnotation();
 		}
 
-		// Copy gbuffer depth to default framebuffer's depth 
+		// Copy gbuffer depth to default framebuffer's depth
 		{
 			PushRenderPassAnnotation("Copy GBuffer Depth Pass");
 			glBindFramebuffer(GL_READ_FRAMEBUFFER, game.gbuffer.framebuffer);
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
         // blit to default framebuffer. Note that this may or may not work as the internal formats of both the FBO and default framebuffer have to match.
-        // the internal formats are implementation defined. This works on all of my systems, but if it doesn't on yours you'll likely have to write to the 		
+        // the internal formats are implementation defined. This works on all of my systems, but if it doesn't on yours you'll likely have to write to the
         // depth buffer in another shader stage (or somehow see to match the default framebuffer's internal format with the FBO's internal format).
 			glBlitFramebuffer(0, 0, game.framebufferSize.width, game.framebufferSize.height,
-					0, 0, game.framebufferSize.width, game.framebufferSize.height, 
+					0, 0, game.framebufferSize.width, game.framebufferSize.height,
 					GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			PopRenderPassAnnotation();
@@ -591,7 +591,7 @@ int main(void)
 				nk_layout_row_dynamic(ctx, 30, 1);
 				for (uint32_t i = 0; i < ARRAY_COUNT(decalTransforms); ++i) {
 				  nk_label(ctx, UtilsFormatStr("Decal %u:", i), NK_TEXT_ALIGN_LEFT);
-				  nk_layout_row_dynamic(ctx, 30, 4);				  
+				  nk_layout_row_dynamic(ctx, 30, 4);
 				  nk_label(ctx, "Translation:", NK_TEXT_ALIGN_LEFT);
 				  nk_property_float(ctx, "#X", -10.0f, &decalTransforms[i].translation.X, 10.0f, 0.1f, 0.0f);
 				  nk_property_float(ctx, "#Y", -10.0f, &decalTransforms[i].translation.Y, 10.0f, 0.1f, 0.0f);
@@ -603,13 +603,13 @@ int main(void)
 				  nk_label(ctx, "Scale:", NK_TEXT_ALIGN_LEFT);
 				  nk_property_float(ctx, "#X", 1.0f, &decalTransforms[i].scale.X, 10.0f, 0.5f, 0.0f);
 				  nk_property_float(ctx, "#Y", 1.0f, &decalTransforms[i].scale.Y, 10.0f, 0.5f, 0.0f);
-				  nk_property_float(ctx, "#Z", 1.0f, &decalTransforms[i].scale.Z, 10.0f, 0.5f, 0.0f);  
+				  nk_property_float(ctx, "#Z", 1.0f, &decalTransforms[i].scale.Z, 10.0f, 0.5f, 0.0f);
 				}
 				if (nk_button_label(ctx, "Apply Transform")) {
 				  UpdateDecalTransforms(decalWorlds, decalInvWorlds,
-							decalTransforms, ARRAY_COUNT(decalTransforms));				  
+							decalTransforms, ARRAY_COUNT(decalTransforms));
 				}
-				nk_layout_row_dynamic(ctx, 25, 1);				
+				nk_layout_row_dynamic(ctx, 25, 1);
 			}
 			nk_end(ctx);
 
@@ -690,7 +690,7 @@ int CompileShader(const struct File *shader, int shaderType,
 		uint32_t *pHandle)
 {
 	GLCHECK(*pHandle = glCreateShader(shaderType));
-	GLCHECK(glShaderSource(*pHandle, 1, 
+	GLCHECK(glShaderSource(*pHandle, 1,
 			(const GLchar **)&shader->contents,
 			(const GLint*)&shader->size));
 	GLCHECK(glCompileShader(*pHandle));
@@ -716,7 +716,7 @@ int LinkProgram(const uint32_t vs, const uint32_t fs,
 	GLCHECK(glAttachShader(*pHandle, vs));
 	GLCHECK(glAttachShader(*pHandle, fs));
 	GLCHECK(glLinkProgram(*pHandle));
-	
+
 	int linkStatus = 0;
 	GLCHECK(glGetProgramiv(*pHandle, GL_LINK_STATUS, &linkStatus));
 	if (!linkStatus) {
@@ -843,10 +843,10 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 		texIdxOffset += m->Meshes[i].NumTexCoords;
 
 		struct CalculateTangetData data = { vertices, m->Meshes[i].NumFaces, indices, m->Meshes[i].NumFaces }	;
-		CalculateTangentArray(&data);  
+		CalculateTangentArray(&data);
 
 	    GLCHECK(glBindVertexArray(ret->meshes[i].vao));
-		SetObjectName(OI_VERTEX_ARRAY, ret->meshes[i].vao, m->Meshes[i].Name); 
+		SetObjectName(OI_VERTEX_ARRAY, ret->meshes[i].vao, m->Meshes[i].Name);
 	    GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, ret->meshes[i].vbo));
 	    GLCHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(struct Vertex) * m->Meshes[i].NumFaces,
 			    vertices, GL_STATIC_DRAW));
@@ -854,7 +854,7 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 
 
 	    GLCHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ret->meshes[i].ebo));
-	    GLCHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * m->Meshes[i].NumFaces, 
+	    GLCHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * m->Meshes[i].NumFaces,
 				indices, GL_STATIC_DRAW));
 
 	    GLCHECK(glEnableVertexAttribArray(0));
@@ -1083,13 +1083,13 @@ void CalculateTangentArray(struct CalculateTangetData *data)
 	interface.m_getTexCoord = GetTexCoords;
 
 	SMikkTSpaceContext context = { .m_pInterface = &interface, .m_pUserData = data };
-	genTangSpaceDefault(&context);	
+	genTangSpaceDefault(&context);
 }
 
 void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name, const char *label)
 {
 	const char *prefix = NULL;
-	int identifier = 0; 
+	int identifier = 0;
 	switch (objectIdentifier) {
         case OI_BUFFER:
 			prefix = "BUFFER";
@@ -1151,7 +1151,7 @@ void ProcessInput(GLFWwindow* window)
 {
 	struct Game *game = glfwGetWindowUserPointer(window);
 	if (IsKeyPressed(window, GLFW_KEY_ESCAPE)) {
-		glfwSetWindowShouldClose(window, 1);	
+		glfwSetWindowShouldClose(window, 1);
 	}
 	else if (IsKeyPressed(window, GLFW_KEY_R)) {
 		const Vec3D offset = { 0.0f, 1.0f, 0.0f };
@@ -1241,7 +1241,7 @@ void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat
 	}
 
 	const int loc = UtilStrFindLastChar(texPath, '/');
-	t->name = _strdup(texPath + loc + 1);
+	t->name = strdup(texPath + loc + 1);
 
 	UtilsDebugPrint("Loaded %s: %dx%d, channels: %d", t->name, t->width, t->height,
 			channelsInFile);
@@ -1331,7 +1331,7 @@ void InitNuklear(GLFWwindow *window)
 		struct nk_font_atlas* atlas = NULL;
 		nk_glfw3_font_stash_begin(&game->nuklear, &atlas);
 
-		struct nk_font *droid = nk_font_atlas_add_from_file(atlas, 
+		struct nk_font *droid = nk_font_atlas_add_from_file(atlas,
 			UtilsFormatStr("%s/%s", RES_HOME, "fonts/DroidSans.ttf"), 22, 0);
 		nk_glfw3_font_stash_end(&game->nuklear);
 		nk_style_load_all_cursors(&game->nuklear.ctx, atlas->cursors);
