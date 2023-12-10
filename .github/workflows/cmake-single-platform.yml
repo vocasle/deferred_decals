@@ -21,7 +21,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-
+    - name: Root Cache APT Packages
+      # You may pin to the exact commit or the version.
+      # uses: CorrM/cache-apt-pkgs-action@085f47e9a790791a4f706e9d124530bb6afae218
+      uses: CorrM/cache-apt-pkgs-action@v1.0.3
+      with:
+        # Space delimited list of packages to install. Version can be specified optionally using APT command syntax of <name>=<version> (e.g. xdot=1.2-2).
+        packages: xorg-dev libglu1-mesa-dev
+          
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
