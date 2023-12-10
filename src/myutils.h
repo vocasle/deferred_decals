@@ -18,9 +18,11 @@ const char* UtilsFormatStr(const char* fmt, ...);
 
 #define UTILS_FATAL_ERROR(msg, ...) UtilsFatalError("ERROR: %s:%d: %s", __FILE__, __LINE__, UtilsFormatStr(msg, __VA_ARGS__))
 
-int UtilStrFindLastChar(const char* str, const char ch);
+int UtilsStrFindLastChar(const char* str, const char ch);
 
 void UtilsStrSub(const char* str, uint32_t start, uint32_t end, char out[], uint32_t maxSize);
+
+const char *UtilsGetStrAfterChar(const char *str, const char ch);
 
 unsigned char* UtilsReadData(const char* filepath, unsigned int* bufferSize);
 

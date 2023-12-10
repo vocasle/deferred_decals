@@ -42,7 +42,7 @@ const char* UtilsFormatStr(const char* fmt, ...)
     return out;
 }
 
-int UtilStrFindLastChar(const char* str, const char ch)
+int UtilsStrFindLastChar(const char* str, const char ch)
 {
     int pos = -1;
     const char* begin = str;
@@ -53,6 +53,20 @@ int UtilStrFindLastChar(const char* str, const char ch)
         ++str;
     }
     return pos;
+}
+
+const char *UtilsGetStrAfterChar(const char *str, const char ch)
+{
+  const uint32_t len = strlen(str);
+  if (!len) {
+    return NULL;
+  }
+
+  const int n = UtilsStrFindLastChar(str, ch);
+  if (n < 0 || n + 1 >= len) {
+    return NULL;
+  }
+  return str + n + 1;
 }
 
 void UtilsStrSub(const char* str, uint32_t start, uint32_t end, char out[], uint32_t maxSize)

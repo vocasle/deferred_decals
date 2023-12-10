@@ -788,7 +788,11 @@ res/shaders/gbuffer_frag.glsl,0
 
 res/shaders/vert.glsl,0
 
-src/decals.c,7573
+src/#decals.c#,0
+
+src/.#decals.c,0
+
+src/decals.c,7753
 #define STB_IMAGE_IMPLEMENTATIONSTB_IMAGE_IMPLEMENTATION7,112
 #define NK_INCLUDE_FIXED_TYPESNK_INCLUDE_FIXED_TYPES15,266
 #define NK_INCLUDE_STANDARD_IONK_INCLUDE_STANDARD_IO16,298
@@ -835,102 +839,106 @@ enum UniformType {UniformType67,1340
 	UT_UINT,UT_UINT74,1429
 enum ObjectIdentifier {ObjectIdentifier77,1446
 	OI_BUFFER,OI_BUFFER78,1471
-	OI_SHADER,OI_SHADER79,1484
-	OI_PROGRAM,OI_PROGRAM80,1497
-	OI_VERTEX_ARRAY,OI_VERTEX_ARRAY81,1511
-	OI_QUERY,OI_QUERY82,1530
-	OI_PROGRAM_PIPELINE,OI_PROGRAM_PIPELINE83,1542
-	OI_TRANSFORM_FEEDBACK,OI_TRANSFORM_FEEDBACK84,1565
-	OI_SAMPLER,OI_SAMPLER85,1590
-	OI_TEXTURE,OI_TEXTURE86,1604
-	OI_RENDERBUFFER,OI_RENDERBUFFER87,1618
-	OI_FRAMEBUFFER,OI_FRAMEBUFFER88,1637
-enum GBufferDebugMode {GBufferDebugMode91,1661
-	GDM_NONE,GDM_NONE92,1686
-	GDM_NORMAL_MAP,GDM_NORMAL_MAP93,1698
-	GDM_ALBEDO,GDM_ALBEDO94,1716
-	GDM_POSITION,GDM_POSITION95,1730
-struct GBuffer {GBuffer98,1752
-	uint32_t position;position99,1770
-	uint32_t normal;normal100,1791
-	uint32_t albedo;albedo101,1810
-	uint32_t framebuffer;framebuffer102,1829
-	uint32_t depthBuffer;depthBuffer103,1853
-	uint32_t gbufferDepthTex;gbufferDepthTex104,1877
-struct FullscreenQuadPass {FullscreenQuadPass107,1911
-	uint32_t vbo;vbo108,1940
-	uint32_t vao;vao109,1956
-struct FramebufferSize {FramebufferSize112,1978
-	int width;width113,2004
-	int height;height114,2017
-struct Texture2D {Texture2D117,2037
-	int32_t width;width118,2057
-	int32_t height;height119,2074
-	char *name;name120,2092
-	uint32_t handle;handle121,2106
-	int32_t samplerLocation;samplerLocation122,2125
-struct Camera {Camera125,2158
-	Mat4X4 view;view126,2175
-	Mat4X4 proj;proj127,2190
-	Vec3D position;position128,2205
-	Vec3D right;right129,2223
-	Vec3D front;front130,2238
-struct Game {Game133,2259
-	struct GBuffer gbuffer;gbuffer134,2274
-	struct FramebufferSize framebufferSize;framebufferSize135,2300
-	enum GBufferDebugMode gbufferDebugMode;gbufferDebugMode136,2342
-	struct Texture2D *albedoTextures;albedoTextures137,2384
-	struct Texture2D *normalTextures;normalTextures138,2420
-	struct Texture2D *roughnessTextures;roughnessTextures139,2456
-	uint32_t numTextures;numTextures140,2495
-	struct Camera camera;camera141,2519
-	struct nk_glfw nuklear;nuklear142,2543
-struct CalculateTangetData {CalculateTangetData167,3472
-	struct Vertex *vertices;vertices168,3502
-	uint32_t numVertices;numVertices169,3529
-	const uint32_t *indices;indices170,3553
-	uint32_t numIndices;numIndices171,3580
-void DebugBreak()DebugBreak199,4413
-#define GLCHECK(GLCHECK208,4504
-#define ARRAY_COUNT(ARRAY_COUNT219,4739
-MessageCallback(GLenum source,MessageCallback222,4819
-int main(void)main244,5466
-int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle)CreateProgram636,22871
-struct File LoadShader(const char *shaderName)LoadShader661,23497
-int CompileShader(const struct File *shader, int shaderType,CompileShader689,24164
-int LinkProgram(const uint32_t vs, const uint32_t fs,LinkProgram712,24854
-void OnFramebufferResize(GLFWwindow *window, int width,OnFramebufferResize735,25481
-struct ModelProxy *LoadModel(const char *filename)LoadModel745,25787
-void PrintModelToFile(const struct Model *m)PrintModelToFile765,26407
-void ValidateModelProxy(const struct ModelProxy *m)ValidateModelProxy791,27181
-struct ModelProxy *CreateModelProxy(const struct Model *m)CreateModelProxy799,27444
-uint32_t GetUniformLocation(uint32_t programHandle, const char *name)GetUniformLocation885,30968
-void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const void *data, enum SetUniform891,31130
-double GetDeltaTime()GetDeltaTime917,31851
-uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,CreateTexture2D926,32017
-void InitQuadPass(struct FullscreenQuadPass *fsqPass)InitQuadPass962,33126
-void RenderQuad(const struct FullscreenQuadPass *fsqPass)RenderQuad983,33912
-int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)InitGBuffer990,34088
-void GetNormal(const SMikkTSpaceContext * pContext, float fvNormOut[], const int iFace, const inGetNormal1030,35789
-void GetPosition(const SMikkTSpaceContext * pContext, float fvPosOut[], const int iFace, const iGetPosition1038,36146
-void GetTexCoords(const SMikkTSpaceContext * pContext, float fvTexcOut[], const int iFace, constGetTexCoords1046,36507
-int GetNumVerticesOfFace(const SMikkTSpaceContext * pContext, const int iFace)GetNumVerticesOfFace1054,36814
-void SetTSpaceBasic(const SMikkTSpaceContext * pContext, const float fvTangent[],SetTSpaceBasic1059,36914
-int GetNumFaces(const SMikkTSpaceContext * pContext)GetNumFaces1069,37362
-void CalculateTangentArray(struct CalculateTangetData *data)CalculateTangentArray1075,37515
-void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name, const char *label)SetObjectName1089,38013
-int IsKeyPressed(GLFWwindow *window, int key)IsKeyPressed1144,39429
-void ProcessInput(GLFWwindow* window)ProcessInput1150,39583
-void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat,Texture2D_Load1232,43093
-void Camera_Init(struct Camera *camera, const Vec3D *position,Camera_Init1261,44214
-void Game_Update(struct Game *game)Game_Update1275,44795
-void PushRenderPassAnnotation(const char* passName)PushRenderPassAnnotation1283,45086
-void PopRenderPassAnnotation(void)PopRenderPassAnnotation1288,45227
-Mat4X4 TransformToMat4X4(const struct Transform *t)TransformToMat4X41293,45292
-void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,UpdateDecalTransforms1303,45692
-struct nk_glfw *GetNuklearGLFW(GLFWwindow *w)GetNuklearGLFW1320,46535
-void InitNuklear(GLFWwindow *window)InitNuklear1326,46668
-void DeinitNuklear(GLFWwindow* window)DeinitNuklear1343,47244
+	OI_INDEX_BUFFER,OI_INDEX_BUFFER79,1484
+	OI_VERTEX_BUFFER,OI_VERTEX_BUFFER80,1503
+	OI_SHADER,OI_SHADER81,1523
+	OI_VERTEX_SHADER,OI_VERTEX_SHADER82,1536
+	OI_FRAGMENT_SHADER,OI_FRAGMENT_SHADER83,1556
+	OI_PROGRAM,OI_PROGRAM84,1578
+	OI_VERTEX_ARRAY,OI_VERTEX_ARRAY85,1592
+	OI_QUERY,OI_QUERY86,1611
+	OI_PROGRAM_PIPELINE,OI_PROGRAM_PIPELINE87,1623
+	OI_TRANSFORM_FEEDBACK,OI_TRANSFORM_FEEDBACK88,1646
+	OI_SAMPLER,OI_SAMPLER89,1671
+	OI_TEXTURE,OI_TEXTURE90,1685
+	OI_RENDERBUFFER,OI_RENDERBUFFER91,1699
+	OI_FRAMEBUFFER,OI_FRAMEBUFFER92,1718
+enum GBufferDebugMode {GBufferDebugMode95,1742
+	GDM_NONE,GDM_NONE96,1767
+	GDM_NORMAL_MAP,GDM_NORMAL_MAP97,1779
+	GDM_ALBEDO,GDM_ALBEDO98,1797
+	GDM_POSITION,GDM_POSITION99,1811
+struct GBuffer {GBuffer102,1833
+	uint32_t position;position103,1851
+	uint32_t normal;normal104,1872
+	uint32_t albedo;albedo105,1891
+	uint32_t framebuffer;framebuffer106,1910
+	uint32_t depthBuffer;depthBuffer107,1934
+	uint32_t gbufferDepthTex;gbufferDepthTex108,1958
+struct FullscreenQuadPass {FullscreenQuadPass111,1992
+	uint32_t vbo;vbo112,2021
+	uint32_t vao;vao113,2037
+struct FramebufferSize {FramebufferSize116,2059
+	int width;width117,2085
+	int height;height118,2098
+struct Texture2D {Texture2D121,2118
+	int32_t width;width122,2138
+	int32_t height;height123,2155
+	char *name;name124,2173
+	uint32_t handle;handle125,2187
+	int32_t samplerLocation;samplerLocation126,2206
+struct Camera {Camera129,2239
+	Mat4X4 view;view130,2256
+	Mat4X4 proj;proj131,2271
+	Vec3D position;position132,2286
+	Vec3D right;right133,2304
+	Vec3D front;front134,2319
+struct Game {Game137,2340
+	struct GBuffer gbuffer;gbuffer138,2355
+	struct FramebufferSize framebufferSize;framebufferSize139,2381
+	enum GBufferDebugMode gbufferDebugMode;gbufferDebugMode140,2423
+	struct Texture2D *albedoTextures;albedoTextures141,2465
+	struct Texture2D *normalTextures;normalTextures142,2501
+	struct Texture2D *roughnessTextures;roughnessTextures143,2537
+	uint32_t numTextures;numTextures144,2576
+	struct Camera camera;camera145,2600
+	struct nk_glfw nuklear;nuklear146,2624
+struct CalculateTangetData {CalculateTangetData171,3553
+	struct Vertex *vertices;vertices172,3583
+	uint32_t numVertices;numVertices173,3610
+	const uint32_t *indices;indices174,3634
+	uint32_t numIndices;numIndices175,3661
+void DebugBreak()DebugBreak203,4494
+#define GLCHECK(GLCHECK212,4585
+#define ARRAY_COUNT(ARRAY_COUNT223,4820
+MessageCallback(GLenum source,MessageCallback226,4900
+int main(void)main248,5547
+int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle)CreateProgram634,22470
+struct File LoadShader(const char *shaderName)LoadShader664,23341
+int CompileShader(const struct File *shader, int shaderType,CompileShader692,24008
+int LinkProgram(const uint32_t vs, const uint32_t fs,LinkProgram715,24698
+void OnFramebufferResize(GLFWwindow *window, int width,OnFramebufferResize738,25325
+struct ModelProxy *LoadModel(const char *filename)LoadModel748,25631
+void PrintModelToFile(const struct Model *m)PrintModelToFile768,26251
+void ValidateModelProxy(const struct ModelProxy *m)ValidateModelProxy794,27025
+struct ModelProxy *CreateModelProxy(const struct Model *m)CreateModelProxy802,27288
+uint32_t GetUniformLocation(uint32_t programHandle, const char *name)GetUniformLocation892,31046
+void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const void *data, enum SetUniform898,31208
+double GetDeltaTime()GetDeltaTime924,31929
+uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,CreateTexture2D933,32095
+void InitQuadPass(struct FullscreenQuadPass *fsqPass)InitQuadPass969,33204
+void RenderQuad(const struct FullscreenQuadPass *fsqPass)RenderQuad990,33990
+int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)InitGBuffer997,34166
+void GetNormal(const SMikkTSpaceContext * pContext, float fvNormOut[], const int iFace, const inGetNormal1037,35867
+void GetPosition(const SMikkTSpaceContext * pContext, float fvPosOut[], const int iFace, const iGetPosition1045,36224
+void GetTexCoords(const SMikkTSpaceContext * pContext, float fvTexcOut[], const int iFace, constGetTexCoords1053,36585
+int GetNumVerticesOfFace(const SMikkTSpaceContext * pContext, const int iFace)GetNumVerticesOfFace1061,36892
+void SetTSpaceBasic(const SMikkTSpaceContext * pContext, const float fvTangent[],SetTSpaceBasic1066,36992
+int GetNumFaces(const SMikkTSpaceContext * pContext)GetNumFaces1076,37440
+void CalculateTangentArray(struct CalculateTangetData *data)CalculateTangentArray1082,37593
+void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name, const char *label)SetObjectName1096,38091
+int IsKeyPressed(GLFWwindow *window, int key)IsKeyPressed1167,39850
+void ProcessInput(GLFWwindow* window)ProcessInput1173,40004
+void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat,Texture2D_Load1255,43514
+void Camera_Init(struct Camera *camera, const Vec3D *position,Camera_Init1284,44634
+void Game_Update(struct Game *game)Game_Update1298,45215
+void PushRenderPassAnnotation(const char* passName)PushRenderPassAnnotation1306,45506
+void PopRenderPassAnnotation(void)PopRenderPassAnnotation1311,45647
+Mat4X4 TransformToMat4X4(const struct Transform *t)TransformToMat4X41316,45712
+void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,UpdateDecalTransforms1326,46112
+struct nk_glfw *GetNuklearGLFW(GLFWwindow *w)GetNuklearGLFW1343,46955
+void InitNuklear(GLFWwindow *window)InitNuklear1349,47088
+void DeinitNuklear(GLFWwindow* window)DeinitNuklear1366,47664
 
 src/mymath.c,5543
 #define EPSILON EPSILON13,203
@@ -1058,21 +1066,22 @@ typedef struct Mat4X4Mat4X440,432
 		float A[4][4];A52,626
 } Mat4X4;Mat4X454,649
 
-src/myutils.c,499
+src/myutils.c,595
 void UtilsDebugPrint(const char* fmt, ...)UtilsDebugPrint11,173
 void UtilsFatalError(const char* fmt, ...)UtilsFatalError22,421
 const char* UtilsFormatStr(const char* fmt, ...)UtilsFormatStr35,728
-int UtilStrFindLastChar(const char* str, const char ch)UtilStrFindLastChar45,939
-void UtilsStrSub(const char* str, uint32_t start, uint32_t end, char out[], uint32_t maxSize)UtilsStrSub58,1189
-unsigned char* UtilsReadData(const char* filepath, unsigned int* bufferSize)UtilsReadData72,1569
+int UtilsStrFindLastChar(const char* str, const char ch)UtilsStrFindLastChar45,939
+const char *UtilsGetStrAfterChar(const char *str, const char ch)UtilsGetStrAfterChar58,1190
+void UtilsStrSub(const char* str, uint32_t start, uint32_t end, char out[], uint32_t maxSize)UtilsStrSub72,1459
+unsigned char* UtilsReadData(const char* filepath, unsigned int* bufferSize)UtilsReadData86,1839
 
 src/myutils.h,284
 static const int MAX_CONSOLE_LINES = 500;MAX_CONSOLE_LINES11,167
 #define UTILS_FATAL_ERROR(UTILS_FATAL_ERROR19,359
-#define DEFINE_ARRAY_TYPE(DEFINE_ARRAY_TYPE29,750
-#define DECLARE_ARRAY_TYPE(DECLARE_ARRAY_TYPE63,1734
-#define COM_FREE(COM_FREE79,2268
-#define HR(HR81,2324
+#define DEFINE_ARRAY_TYPE(DEFINE_ARRAY_TYPE31,820
+#define DECLARE_ARRAY_TYPE(DECLARE_ARRAY_TYPE65,1804
+#define COM_FREE(COM_FREE81,2338
+#define HR(HR83,2394
 
 src/objloader.c,1404
 void OLLogInfo(const char* fmt, ...)OLLogInfo10,153

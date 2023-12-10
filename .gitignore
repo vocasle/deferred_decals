@@ -57,3 +57,4 @@ build/
 compile_commands.json
 .cache/
 .vs/
+TAGS

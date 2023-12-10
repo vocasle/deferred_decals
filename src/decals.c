@@ -76,7 +76,11 @@ enum UniformType {
 
 enum ObjectIdentifier {
 	OI_BUFFER,
+	OI_INDEX_BUFFER,
+	OI_VERTEX_BUFFER,
 	OI_SHADER,
+	OI_VERTEX_SHADER,
+	OI_FRAGMENT_SHADER,
 	OI_PROGRAM,
 	OI_VERTEX_ARRAY,
 	OI_QUERY,
@@ -158,7 +162,7 @@ double GetDeltaTime();
 uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
 		int format, int type, int attachment, int genFB, const char *imagePath);
 
-int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle);
+int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle, const char *programName);
 
 void RenderQuad(const struct FullscreenQuadPass *fsqPass);
 
@@ -284,25 +288,25 @@ int main(void)
 	}
 
 	uint32_t phongProgram = 0;
-	if (!CreateProgram("shaders/frag.glsl", "shaders/vert.glsl", &phongProgram)) {
+	if (!CreateProgram("shaders/frag.glsl", "shaders/vert.glsl", &phongProgram, "Phong")) {
 		UtilsFatalError("ERROR: Failed to create program\n");
 		return -1;
 	}
 
 	uint32_t deferredDecal = 0;
-	if (!CreateProgram("shaders/deferred_decal.glsl", "shaders/vert.glsl", &deferredDecal)) {
+	if (!CreateProgram("shaders/deferred_decal.glsl", "shaders/vert.glsl", &deferredDecal, "Decal")) {
 		UtilsFatalError("ERROR: Failed to create program\n");
 		return -1;
 	}
 
 	uint32_t gbufferProgram = 0;
-	if (!CreateProgram("shaders/gbuffer_frag.glsl", "shaders/vert.glsl", &gbufferProgram)) {
+	if (!CreateProgram("shaders/gbuffer_frag.glsl", "shaders/vert.glsl", &gbufferProgram, "GBuffer")) {
 		UtilsFatalError("ERROR: Failed to create program\n");
 		return -1;
 	}
 
 	uint32_t deferredProgram = 0;
-	if (!CreateProgram("shaders/deferred_frag.glsl", "shaders/deferred_vert.glsl", &deferredProgram)) {
+	if (!CreateProgram("shaders/deferred_frag.glsl", "shaders/deferred_vert.glsl", &deferredProgram, "Deffered")) {
 		UtilsFatalError("ERROR: Failed to create program\n");
 		return -1;
 	}
@@ -475,18 +479,12 @@ int main(void)
 
 					const Vec3D bboxMin = { -1.0f, -1.0f, -1.0f };
 					const Vec3D bboxMax = { 1.0f, 1.0f, 1.0f };
-					GLCHECK(glActiveTexture(GL_TEXTURE0));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
-					GLCHECK(glActiveTexture(GL_TEXTURE3));
 
 					SetUniform(deferredDecal, "g_bboxMin", sizeof(Vec3D), &bboxMin, UT_VEC3F);
 					SetUniform(deferredDecal, "g_bboxMax", sizeof(Vec3D), &bboxMax, UT_VEC3F);
 					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 					SetUniform(deferredDecal, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
 					SetUniform(deferredDecal, "g_depth", sizeof(int32_t), &C_DECAL_DEPTH_TEX_LOC, UT_INT);
-					SetUniform(deferredDecal, "g_tbn_tangent", sizeof(int32_t), &C_DECAL_TBN_TANGENT_TEX_LOC, UT_INT);
-					SetUniform(deferredDecal, "g_tbn_bitangent", sizeof(int32_t), &C_DECAL_TBN_BITANGENT_TEX_LOC, UT_INT);
-					SetUniform(deferredDecal, "g_tbn_normal", sizeof(int32_t), &C_DECAL_TBN_NORMAL_TEX_LOC, UT_INT);
 					SetUniform(deferredDecal, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
 					SetUniform(deferredDecal, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
 					SetUniform(deferredDecal, "g_invViewProj", sizeof(Mat4X4), &invViewProj, UT_MAT4);
@@ -633,7 +631,7 @@ int main(void)
     return 0;
 }
 
-int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle)
+int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle, const char *programName)
 {
 	struct File fragSource = LoadShader(fs);
 	struct File vertSource = LoadShader(vs);
@@ -652,7 +650,11 @@ int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle)
 	{
 		return 0;
 	}
-	UtilsDebugPrint("Linked program %u", *programHandle);
+
+	SetObjectName(OI_FRAGMENT_SHADER, fragHandle, UtilsGetStrAfterChar(fs, '/'));
+	SetObjectName(OI_VERTEX_SHADER, vertHandle, UtilsGetStrAfterChar(vs, '/'));
+	SetObjectName(OI_PROGRAM, *programHandle, programName);
+	UtilsDebugPrint("Linked program %u (%s)", *programHandle, programName);
 	GLCHECK(glDeleteShader(vertHandle));
 	GLCHECK(glDeleteShader(fragHandle));
 	return 1;
@@ -874,6 +876,10 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 		ret->meshes[i].world = world;
 
 		free(indices);
+
+	    SetObjectName(OI_VERTEX_ARRAY, ret->meshes[i].vao, m->Meshes[i].Name);
+	    SetObjectName(OI_VERTEX_BUFFER, ret->meshes[i].vbo, m->Meshes[i].Name);
+	    SetObjectName(OI_INDEX_BUFFER, ret->meshes[i].ebo, m->Meshes[i].Name);
 	}
 
 //	ValidateModelProxy(ret);
@@ -1095,16 +1101,32 @@ void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name, const 
 			prefix = "BUFFER";
 			identifier = GL_BUFFER;
 			break;
+	case OI_INDEX_BUFFER:
+	  prefix = "EBO";
+	  identifier = GL_BUFFER;
+	  break;
+	case OI_VERTEX_BUFFER:
+	  prefix = "VBO";
+	  identifier = GL_BUFFER;
+	  break;
         case OI_SHADER:
 			prefix = "SHADER";
 			identifier = GL_SHADER;
 			break;
+        case OI_VERTEX_SHADER:
+			prefix = "VS";
+			identifier = GL_SHADER;
+			break;
+        case OI_FRAGMENT_SHADER:
+			prefix = "FS";
+			identifier = GL_SHADER;
+			break;			
         case OI_PROGRAM:
 			prefix = "PROGRAM";
 			identifier = GL_PROGRAM;
 			break;
         case OI_VERTEX_ARRAY:
-			prefix = "VERTEX_ARRAY";
+			prefix = "VAO";
 			identifier = GL_VERTEX_ARRAY;
 			break;
         case OI_QUERY:
@@ -1137,7 +1159,7 @@ void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name, const 
 			break;
         }
 
-	const char *fullLabel = UtilsFormatStr("%s_%s", prefix, label);
+	const char *fullLabel = UtilsFormatStr("%s_%s", label, prefix);
 	GLCHECK(glObjectLabel(identifier, name, strlen(fullLabel), fullLabel));
 }
 
@@ -1240,7 +1262,7 @@ void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat
 		exit(-1);
 	}
 
-	const int loc = UtilStrFindLastChar(texPath, '/');
+	const int loc = UtilsStrFindLastChar(texPath, '/');
 	t->name = strdup(texPath + loc + 1);
 
 	UtilsDebugPrint("Loaded %s: %dx%d, channels: %d", t->name, t->width, t->height,
