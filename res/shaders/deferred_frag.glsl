@@ -41,7 +41,9 @@ void main()
 
 		vec3 ambient = vec3(0.1);
 		
-		vec3 lightColor = vec3(1.0);
+		vec3 lightColor = vec3(30.0);
+		float distToLight = distance(g_lightPos, WorldPos);
+		float atten = 1.0 / (distToLight * distToLight);
 		vec3 l = normalize(g_lightPos - WorldPos);
 		vec3 n = normalize(Normal);
 		float NdotL = max(dot(n, l), 0.0);
@@ -54,6 +56,6 @@ void main()
 		vec3 specular = Specular * spec * lightColor;
 
 		color = vec4(1.0);
-		color.rgb = ambient + diffuse + specular;
+		color.rgb = ambient + (diffuse + specular) * atten;
 	}
 }
