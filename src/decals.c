@@ -326,7 +326,7 @@ int main(void)
 	  decalTransforms[1].translation.Y = 1.0f;
 	  decalTransforms[1].translation.Z = -3.0f;
 	  // Always orient decal so that Y faces outward of surface that decal is applied to
-	  decalTransforms[1].rotation.X = MathToRadians(90.0f);
+	  decalTransforms[1].rotation.X = 90.0f;
 	  UpdateDecalTransforms(decalWorlds, decalInvWorlds,
 				decalTransforms, ARRAY_COUNT(decalTransforms));
 	}
@@ -590,43 +590,26 @@ int main(void)
 			{
 				nk_layout_row_dynamic(ctx, 30, 1);
 				for (uint32_t i = 0; i < ARRAY_COUNT(decalTransforms); ++i) {
-				  const char *label = UtilsFormatStr("Decal %u transform:", i);
-				  nk_label(ctx, label, NK_TEXT_ALIGN_LEFT);
-				  nk_property_float(ctx, UtilsFormatStr("[%u] Translation X", i),
-						    -10.0f, &decalTransforms[i].translation.X,
-						    10.0f, 0.1f, 0.0f);
-				  nk_label(ctx, UtilsFormatStr("Translation: %f %f %f",
-							       decalTransforms[i].translation.X,
-							       decalTransforms[i].translation.Y,
-							       decalTransforms[i].translation.Z),
-					   NK_TEXT_ALIGN_LEFT);
-  				  nk_label(ctx, UtilsFormatStr("Rotation: pitch: %f, yaw: %f, roll: %f",
-							       MathToDegrees(decalTransforms[i].rotation.X),
-							       MathToDegrees(decalTransforms[i].rotation.Y),
-							       MathToDegrees(decalTransforms[i].rotation.Z)),
-					   NK_TEXT_ALIGN_LEFT);
-				  nk_label(ctx, UtilsFormatStr("Scale: %f %f %f",
-							       decalTransforms[i].scale.X,
-							       decalTransforms[i].scale.Y,
-							       decalTransforms[i].scale.Z),
-					   NK_TEXT_ALIGN_LEFT);
+				  nk_label(ctx, UtilsFormatStr("Decal %u:", i), NK_TEXT_ALIGN_LEFT);
+				  nk_layout_row_dynamic(ctx, 30, 4);				  
+				  nk_label(ctx, "Translation:", NK_TEXT_ALIGN_LEFT);
+				  nk_property_float(ctx, "#X", -10.0f, &decalTransforms[i].translation.X, 10.0f, 0.1f, 0.0f);
+				  nk_property_float(ctx, "#Y", -10.0f, &decalTransforms[i].translation.Y, 10.0f, 0.1f, 0.0f);
+				  nk_property_float(ctx, "#Z", -10.0f, &decalTransforms[i].translation.Z, 10.0f, 0.1f, 0.0f);
+				  nk_label(ctx, "Rotation:", NK_TEXT_ALIGN_LEFT);
+				  nk_property_float(ctx, "#Pitch", -89.0f, &decalTransforms[i].rotation.X, 89.0f, 1.0f, 0.0f);
+				  nk_property_float(ctx, "#Yaw", -180.0f, &decalTransforms[i].rotation.Y, 180.0f, 1.0f, 0.0f);
+				  nk_property_float(ctx, "#Roll", -89.0f, &decalTransforms[i].rotation.Z, 89.0f, 1.0f, 0.0f);
+				  nk_label(ctx, "Scale:", NK_TEXT_ALIGN_LEFT);
+				  nk_property_float(ctx, "#X", 1.0f, &decalTransforms[i].scale.X, 10.0f, 0.5f, 0.0f);
+				  nk_property_float(ctx, "#Y", 1.0f, &decalTransforms[i].scale.Y, 10.0f, 0.5f, 0.0f);
+				  nk_property_float(ctx, "#Z", 1.0f, &decalTransforms[i].scale.Z, 10.0f, 0.5f, 0.0f);  
 				}
 				if (nk_button_label(ctx, "Apply Transform")) {
 				  UpdateDecalTransforms(decalWorlds, decalInvWorlds,
 							decalTransforms, ARRAY_COUNT(decalTransforms));				  
 				}
-				nk_layout_row_dynamic(ctx, 25, 1);
-				if (nk_combo_begin_color(ctx, nk_rgb_cf(bg), nk_vec2(nk_widget_width(ctx),400))) {
-				  nk_layout_row_dynamic(ctx, 120, 1);
-				  bg = nk_color_picker(ctx, bg, NK_RGBA);
-				  nk_layout_row_dynamic(ctx, 25, 1);
-				  bg.r = nk_propertyf(ctx, "#R:", 0, bg.r, 1.0f, 0.01f,0.005f);
-				  bg.g = nk_propertyf(ctx, "#G:", 0, bg.g, 1.0f, 0.01f,0.005f);
-				  bg.b = nk_propertyf(ctx, "#B:", 0, bg.b, 1.0f, 0.01f,0.005f);
-				  bg.a = nk_propertyf(ctx, "#A:", 0, bg.a, 1.0f, 0.01f,0.005f);
-				  nk_combo_end(ctx);
-				}				
-				
+				nk_layout_row_dynamic(ctx, 25, 1);				
 			}
 			nk_end(ctx);
 
@@ -1170,18 +1153,6 @@ void ProcessInput(GLFWwindow* window)
 	if (IsKeyPressed(window, GLFW_KEY_ESCAPE)) {
 		glfwSetWindowShouldClose(window, 1);	
 	}
-	else if (IsKeyPressed(window, GLFW_KEY_0)) {
-		game->gbufferDebugMode = GDM_NONE;
-	}
-	else if (IsKeyPressed(window, GLFW_KEY_1)) {
-		game->gbufferDebugMode = GDM_NORMAL_MAP;
-	}
-	else if (IsKeyPressed(window, GLFW_KEY_2)) {
-		game->gbufferDebugMode = GDM_ALBEDO;
-	}
-	else if (IsKeyPressed(window, GLFW_KEY_3)) {
-		game->gbufferDebugMode = GDM_POSITION;
-	}
 	else if (IsKeyPressed(window, GLFW_KEY_R)) {
 		const Vec3D offset = { 0.0f, 1.0f, 0.0f };
 		game->camera.position = MathVec3DAddition(&game->camera.position, &offset);
@@ -1334,7 +1305,10 @@ void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,
 {
   for (uint32_t i = 0; i < numDecals; ++i) {
     const Mat4X4 translation = MathMat4X4TranslateFromVec3D(&decalTransforms[i].translation);
-    const Mat4X4 rotation = MathMat4X4RotateFromVec3D(&decalTransforms[i].rotation);
+    const Vec3D angles = {MathToRadians(decalTransforms[i].rotation.X),
+      MathToRadians(decalTransforms[i].rotation.Y),
+      MathToRadians(decalTransforms[i].rotation.Z)};
+    const Mat4X4 rotation = MathMat4X4RotateFromVec3D(&angles);
     const Mat4X4 scale = MathMat4X4ScaleFromVec3D(&decalTransforms[i].scale);
     Mat4X4 world = MathMat4X4MultMat4X4ByMat4X4(&scale, &rotation);
     world = MathMat4X4MultMat4X4ByMat4X4(&world, &translation);
