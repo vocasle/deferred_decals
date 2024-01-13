@@ -11,6 +11,7 @@
 #include "myutils.h"
 #include "objloader.h"
 #include "mymath.h"
+#include "defines.h"
 
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
@@ -30,7 +31,7 @@
 
 #if _WIN32
 	__declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
-	__declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+	__declspec(dllexport) i32 AmdPowerXpressRequestHighPerformance = 1;
 #endif
 
 struct Transform {
@@ -40,7 +41,7 @@ struct Transform {
 };
 
 struct File {
-	char *contents;
+	i8 *contents;
 	uint64_t size;
 };
 
@@ -52,16 +53,16 @@ struct Vertex {
 };
 
 struct MeshProxy {
-	uint32_t vao;
-	uint32_t vbo;
-	uint32_t ebo;
-	uint32_t numIndices;
+	u32 vao;
+	u32 vbo;
+	u32 ebo;
+	u32 numIndices;
 	Mat4X4 world;
 };
 
 struct ModelProxy {
 	struct MeshProxy *meshes;
-	uint32_t numMeshes;
+	u32 numMeshes;
 };
 
 enum UniformType {
@@ -100,30 +101,30 @@ enum GBufferDebugMode {
 };
 
 struct GBuffer {
-	uint32_t position;
-	uint32_t normal;
-	uint32_t albedo;
-	uint32_t framebuffer;
-	uint32_t depthBuffer;
-	uint32_t gbufferDepthTex;
+	u32 position;
+	u32 normal;
+	u32 albedo;
+	u32 framebuffer;
+	u32 depthBuffer;
+	u32 gbufferDepthTex;
 };
 
 struct FullscreenQuadPass {
-	uint32_t vbo;
-	uint32_t vao;
+	u32 vbo;
+	u32 vao;
 };
 
 struct FramebufferSize {
-	int width;
-	int height;
+	i32 width;
+	i32 height;
 };
 
 struct Texture2D {
-	int32_t width;
-	int32_t height;
-	char *name;
-	uint32_t handle;
-	int32_t samplerLocation;
+	i32 width;
+	i32 height;
+	i8 *name;
+	u32 handle;
+	i32 samplerLocation;
 };
 
 struct Camera {
@@ -141,28 +142,28 @@ struct Game {
 	struct Texture2D *albedoTextures;
 	struct Texture2D *normalTextures;
 	struct Texture2D *roughnessTextures;
-	uint32_t numTextures;
+	u32 numTextures;
 	struct Camera camera;
 	struct nk_glfw nuklear;
 };
 
-struct File LoadShader(const char *shaderName);
-int LinkProgram(const uint32_t vs, const uint32_t fs, uint32_t *pHandle);
-int CompileShader(const struct File *shader, int shaderType,
-		uint32_t *pHandle);
-void OnFramebufferResize(GLFWwindow *window, int width, int height);
+struct File LoadShader(const i8 *shaderName);
+i32 LinkProgram(const u32 vs, const u32 fs, u32 *pHandle);
+i32 CompileShader(const struct File *shader, i32 shaderType,
+		u32 *pHandle);
+void OnFramebufferResize(GLFWwindow *window, i32 width, i32 height);
 
-struct ModelProxy *LoadModel(const char *filename);
+struct ModelProxy *LoadModel(const i8 *filename);
 struct ModelProxy *CreateModelProxy(const struct Model *m);
 
-void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const void *data, enum UniformType type);
+void SetUniform(u32 programHandle, const i8 *name, u32 size, const void *data, enum UniformType type);
 
-double GetDeltaTime();
+f64 GetDeltaTime();
 
-uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
-		int format, int type, int attachment, int genFB, const char *imagePath);
+u32 CreateTexture2D(u32 width, u32 height, i32 internalFormat,
+		i32 format, i32 type, i32 attachment, i32 genFB, const i8 *imagePath);
 
-int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle, const char *programName);
+i32 CreateProgram(const i8 *fs, const i8 *vs, u32 *programHandle, const i8 *programName);
 
 void RenderQuad(const struct FullscreenQuadPass *fsqPass);
 
@@ -170,31 +171,31 @@ void InitQuadPass(struct FullscreenQuadPass *fsqPass);
 
 struct CalculateTangetData {
 	struct Vertex *vertices;
-	uint32_t numVertices;
-	const uint32_t *indices;
-	uint32_t numIndices;
+	u32 numVertices;
+	const u32 *indices;
+	u32 numIndices;
 };
 void CalculateTangentArray(struct CalculateTangetData *data);
 
-void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name,
-		const char *label);
+void SetObjectName(enum ObjectIdentifier objectIdentifier, u32 name,
+		const i8 *label);
 
 void ProcessInput(GLFWwindow* window);
 
-void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat,
-		int format, int type);
+void Texture2D_Load(struct Texture2D *t, const i8 *texPath, i32 internalFormat,
+		i32 format, i32 type);
 
 void Camera_Init(struct Camera *camera, const Vec3D *position,
-		float fov, float aspectRatio, float zNear, float zFar);
+		f32 fov, f32 aspectRatio, f32 zNear, f32 zFar);
 
 void Game_Update(struct Game *game);
 
-void PushRenderPassAnnotation(const char* passName);
+void PushRenderPassAnnotation(const i8* passName);
 
 void PopRenderPassAnnotation(void);
 
 void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,
-			   const struct Transform *decalTransforms, uint32_t numDecals);
+			   const struct Transform *decalTransforms, u32 numDecals);
 
 void InitNuklear(GLFWwindow *window);
 
@@ -220,7 +221,7 @@ do { \
 	} \
 } while (0)
 
-#define ARRAY_COUNT(x) (uint32_t)(sizeof(x) / sizeof(x[0]))
+#define ARRAY_COUNT(x) (u32)(sizeof(x) / sizeof(x[0]))
 
 void GLAPIENTRY
 MessageCallback(GLenum source,
@@ -242,10 +243,10 @@ MessageCallback(GLenum source,
 	}
 }
 
-int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight);
+i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight);
 
 
-int main(void)
+i32 main(void)
 {
     GLFWwindow* window = NULL;
 
@@ -273,7 +274,7 @@ int main(void)
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
 
-    const int version = gladLoadGL(glfwGetProcAddress);
+    const i32 version = gladLoadGL(glfwGetProcAddress);
     if (version == 0) {
 	    return -1;
 	}
@@ -282,30 +283,30 @@ int main(void)
     struct ModelProxy *modelProxy = LoadModel("assets/room.obj");
 	{
 		Mat4X4 rotate90 = MathMat4X4RotateY(MathToRadians(-90.0f));
-		for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
+		for (u32 i = 0; i < modelProxy->numMeshes; ++i) {
 			modelProxy->meshes[i].world = rotate90;
 		}
 	}
 
-	uint32_t phongProgram = 0;
+	u32 phongProgram = 0;
 	if (!CreateProgram("shaders/frag.glsl", "shaders/vert.glsl", &phongProgram, "Phong")) {
 		UtilsFatalError("ERROR: Failed to create program\n");
 		return -1;
 	}
 
-	uint32_t deferredDecal = 0;
+	u32 deferredDecal = 0;
 	if (!CreateProgram("shaders/deferred_decal.glsl", "shaders/vert.glsl", &deferredDecal, "Decal")) {
 		UtilsFatalError("ERROR: Failed to create program\n");
 		return -1;
 	}
 
-	uint32_t gbufferProgram = 0;
+	u32 gbufferProgram = 0;
 	if (!CreateProgram("shaders/gbuffer_frag.glsl", "shaders/vert.glsl", &gbufferProgram, "GBuffer")) {
 		UtilsFatalError("ERROR: Failed to create program\n");
 		return -1;
 	}
 
-	uint32_t deferredProgram = 0;
+	u32 deferredProgram = 0;
 	if (!CreateProgram("shaders/deferred_frag.glsl", "shaders/deferred_vert.glsl", &deferredProgram, "Deffered")) {
 		UtilsFatalError("ERROR: Failed to create program\n");
 		return -1;
@@ -336,11 +337,11 @@ int main(void)
 	}
 
 	const Vec3D eyePos = { 4.633266f, 9.594514f, 6.876969f };
-	const float zNear = 0.1f;
-	const float zFar = 1000.0f;
+	const f32 zNear = 0.1f;
+	const f32 zFar = 1000.0f;
 
 	Camera_Init(&game.camera, &eyePos, MathToRadians(90.0f),
-			(float)game.framebufferSize.width / (float)game.framebufferSize.height,
+			(f32)game.framebufferSize.width / (f32)game.framebufferSize.height,
 			zNear, zFar);
 
 	const Vec3D g_lightPos = { 0.0, 10.0, 0.0 };
@@ -350,19 +351,19 @@ int main(void)
 	struct FullscreenQuadPass fsqPass = { 0 };
 	InitQuadPass(&fsqPass);
 	stbi_set_flip_vertically_on_load(1);
-	const char *albedoTexturePaths[] = {
+	const i8 *albedoTexturePaths[] = {
 		"assets/older-wood-flooring-bl/older-wood-flooring_albedo.png",
 		"assets/rusty-metal-bl/rusty-metal_albedo.png",
 		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_COL_1K_SPECULAR.png"
 	};
 
-	const char *normalTexturesPaths[] = {
+	const i8 *normalTexturesPaths[] = {
 		"assets/older-wood-flooring-bl/older-wood-flooring_normal-ogl.png",
 		"assets/rusty-metal-bl/rusty-metal_normal-ogl.png",
 		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_NRM_1K_SPECULAR.png"
 	};
 
-	const char *roughnessTexturePaths[] = {
+	const i8 *roughnessTexturePaths[] = {
 		"assets/older-wood-flooring-bl/older-wood-flooring_roughness.png",
 		"assets/rusty-metal-bl/rusty-metal_roughness.png",
 		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_GLOSS_1K_SPECULAR.png"
@@ -376,25 +377,25 @@ int main(void)
 	game.normalTextures = malloc(sizeof *game.normalTextures * game.numTextures);
 	memset(game.normalTextures, 0, sizeof *game.normalTextures * game.numTextures);
 
-	for (uint32_t i = 0; i < ARRAY_COUNT(albedoTexturePaths); ++i) {
+	for (u32 i = 0; i < ARRAY_COUNT(albedoTexturePaths); ++i) {
 		Texture2D_Load(game.albedoTextures + i, albedoTexturePaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
 		Texture2D_Load(game.normalTextures + i, normalTexturesPaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
 		Texture2D_Load(game.roughnessTextures + i, roughnessTexturePaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
 	}
 
-	const int32_t C_ALBEDO_TEX_LOC = 0;
-	const int32_t C_NORMAL_TEX_LOC = 1;
-	const int32_t C_ROUGHNESS_TEX_LOC = 2;
-	const int32_t C_DECAL_DEPTH_TEX_LOC = 0;
-	const int32_t C_DECAL_ALBEDO_TEX_LOC = 1;
-	const int32_t C_DECAL_NORMAL_TEX_LOC = 2;
-	const uint32_t C_DECAL_TBN_TANGENT_TEX_LOC = 3;
-	const uint32_t C_DECAL_TBN_BITANGENT_TEX_LOC = 4;
-	const uint32_t C_DECAL_TBN_NORMAL_TEX_LOC = 5;
-	const int32_t C_WOOD_TEX_IDX = 0;
-	const int32_t C_RUSTY_METAL_TEX_IDX = 1;
-	const int32_t C_BRICKS_TEX_IDX = 2;
-	const int32_t DECAL_TEXTURE_INDICES[2] = { C_WOOD_TEX_IDX, C_BRICKS_TEX_IDX };
+	const i32 C_ALBEDO_TEX_LOC = 0;
+	const i32 C_NORMAL_TEX_LOC = 1;
+	const i32 C_ROUGHNESS_TEX_LOC = 2;
+	const i32 C_DECAL_DEPTH_TEX_LOC = 0;
+	const i32 C_DECAL_ALBEDO_TEX_LOC = 1;
+	const i32 C_DECAL_NORMAL_TEX_LOC = 2;
+	const u32 C_DECAL_TBN_TANGENT_TEX_LOC = 3;
+	const u32 C_DECAL_TBN_BITANGENT_TEX_LOC = 4;
+	const u32 C_DECAL_TBN_NORMAL_TEX_LOC = 5;
+	const i32 C_WOOD_TEX_IDX = 0;
+	const i32 C_RUSTY_METAL_TEX_IDX = 1;
+	const i32 C_BRICKS_TEX_IDX = 2;
+	const i32 DECAL_TEXTURE_INDICES[2] = { C_WOOD_TEX_IDX, C_BRICKS_TEX_IDX };
 
 #if _WIN32
 	glfwMaximizeWindow(window);
@@ -423,12 +424,12 @@ int main(void)
 				SetUniform(gbufferProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 				SetUniform(gbufferProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 
-				SetUniform(gbufferProgram, "g_albedoTex", sizeof(int32_t), &C_ALBEDO_TEX_LOC, UT_INT);
-				SetUniform(gbufferProgram, "g_normalTex", sizeof(int32_t), &C_NORMAL_TEX_LOC, UT_INT);
-				SetUniform(gbufferProgram, "g_roughnessTex", sizeof(int32_t),
+				SetUniform(gbufferProgram, "g_albedoTex", sizeof(i32), &C_ALBEDO_TEX_LOC, UT_INT);
+				SetUniform(gbufferProgram, "g_normalTex", sizeof(i32), &C_NORMAL_TEX_LOC, UT_INT);
+				SetUniform(gbufferProgram, "g_roughnessTex", sizeof(i32),
 					&C_ROUGHNESS_TEX_LOC, UT_INT);
 
-				for (uint32_t i = 0; i < modelProxy->numMeshes; ++i) {
+				for (u32 i = 0; i < modelProxy->numMeshes; ++i) {
 					GLCHECK(glActiveTexture(GL_TEXTURE0));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[C_RUSTY_METAL_TEX_IDX].handle));
 					GLCHECK(glActiveTexture(GL_TEXTURE1));
@@ -461,7 +462,7 @@ int main(void)
 				// TODO: Set depth func to GL_LESS, set depth to read only
 				// TODO: Reconstruct world position from depth
 				// TODO: Need to copy depth buffer
-				for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {
+				for (u32 i = 0; i < unitCube->numMeshes; ++i) {
 					GLCHECK(glUseProgram(deferredDecal));
 					GLCHECK(glActiveTexture(GL_TEXTURE0));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
@@ -479,16 +480,16 @@ int main(void)
 
 					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 					SetUniform(deferredDecal, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
-					SetUniform(deferredDecal, "g_depth", sizeof(int32_t), &C_DECAL_DEPTH_TEX_LOC, UT_INT);
+					SetUniform(deferredDecal, "g_depth", sizeof(i32), &C_DECAL_DEPTH_TEX_LOC, UT_INT);
 					SetUniform(deferredDecal, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
 					SetUniform(deferredDecal, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
 					SetUniform(deferredDecal, "g_invViewProj", sizeof(Mat4X4), &invViewProj, UT_MAT4);
 					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 					SetUniform(deferredDecal, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
-					SetUniform(deferredDecal, "g_albedo", sizeof(int32_t), &C_DECAL_ALBEDO_TEX_LOC, UT_INT);
-					SetUniform(deferredDecal, "g_normal", sizeof(int32_t), &C_DECAL_NORMAL_TEX_LOC, UT_INT);
+					SetUniform(deferredDecal, "g_albedo", sizeof(i32), &C_DECAL_ALBEDO_TEX_LOC, UT_INT);
+					SetUniform(deferredDecal, "g_normal", sizeof(i32), &C_DECAL_NORMAL_TEX_LOC, UT_INT);
 					GLCHECK(glBindVertexArray(unitCube->meshes[i].vao));
-					for (uint32_t n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
+					for (u32 n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
 						SetUniform(deferredDecal, "g_world", sizeof(Mat4X4), &decalWorlds[n], UT_MAT4);
 						SetUniform(deferredDecal, "g_decalInvWorld", sizeof(Mat4X4), &decalInvWorlds[n], UT_MAT4);
 						GLCHECK(glActiveTexture(GL_TEXTURE1));
@@ -522,15 +523,15 @@ int main(void)
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.albedo));
 			SetUniform(deferredProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			SetUniform(deferredProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
-			SetUniform(deferredProgram, "g_gbufferDebugMode", sizeof(int32_t),
+			SetUniform(deferredProgram, "g_gbufferDebugMode", sizeof(i32),
 					&game.gbufferDebugMode, UT_INT);
 
-			const uint32_t g_position = 0;
-			const uint32_t g_normal = 1;
-			const uint32_t g_albedo = 2;
-			SetUniform(deferredProgram, "g_position", sizeof(uint32_t), &g_position, UT_INT);
-			SetUniform(deferredProgram, "g_normal", sizeof(uint32_t), &g_normal, UT_INT);
-			SetUniform(deferredProgram, "g_albedo", sizeof(uint32_t), &g_albedo, UT_INT);
+			const u32 g_position = 0;
+			const u32 g_normal = 1;
+			const u32 g_albedo = 2;
+			SetUniform(deferredProgram, "g_position", sizeof(u32), &g_position, UT_INT);
+			SetUniform(deferredProgram, "g_normal", sizeof(u32), &g_normal, UT_INT);
+			SetUniform(deferredProgram, "g_albedo", sizeof(u32), &g_albedo, UT_INT);
 			RenderQuad(&fsqPass);
 			PopRenderPassAnnotation();
 		}
@@ -558,13 +559,13 @@ int main(void)
 			SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
 			SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
-			static const int isWireframe = 1;
-			SetUniform(phongProgram, "g_wireframe", sizeof(int), &isWireframe, UT_INT);
+			static const i32 isWireframe = 1;
+			SetUniform(phongProgram, "g_wireframe", sizeof(i32), &isWireframe, UT_INT);
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			for (uint32_t i = 0; i < unitCube->numMeshes; ++i) {
+			for (u32 i = 0; i < unitCube->numMeshes; ++i) {
 				glBindVertexArray(unitCube->meshes[i].vao);
-				for (uint32_t n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
+				for (u32 n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
 					SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &decalWorlds[n], UT_MAT4);
 					glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL);
 				}
@@ -582,7 +583,7 @@ int main(void)
 				NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
 			{
 				nk_layout_row_dynamic(ctx, 30, 1);
-				for (uint32_t i = 0; i < ARRAY_COUNT(decalTransforms); ++i) {
+				for (u32 i = 0; i < ARRAY_COUNT(decalTransforms); ++i) {
 				  nk_label(ctx, UtilsFormatStr("Decal %u:", i), NK_TEXT_ALIGN_LEFT);
 				  nk_layout_row_dynamic(ctx, 30, 4);
 				  nk_label(ctx, "Translation:", NK_TEXT_ALIGN_LEFT);
@@ -626,17 +627,17 @@ int main(void)
     return 0;
 }
 
-int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle, const char *programName)
+i32 CreateProgram(const i8 *fs, const i8 *vs, u32 *programHandle, const i8 *programName)
 {
 	struct File fragSource = LoadShader(fs);
 	struct File vertSource = LoadShader(vs);
 
-	uint32_t fragHandle = 0;
+	u32 fragHandle = 0;
 	if(!CompileShader(&fragSource, GL_FRAGMENT_SHADER, &fragHandle))
 	{
 		return 0;
 	}
-	uint32_t vertHandle = 0;
+	u32 vertHandle = 0;
 	if(!CompileShader(&vertSource, GL_VERTEX_SHADER, &vertHandle))
 	{
 		return 0;
@@ -655,11 +656,11 @@ int CreateProgram(const char *fs, const char *vs, uint32_t *programHandle, const
 	return 1;
 }
 
-struct File LoadShader(const char *shaderName)
+struct File LoadShader(const i8 *shaderName)
 {
 	struct File out = {0};
-	const uint32_t len = strlen(shaderName) + strlen(RES_HOME) + 2;
-	char *absPath = malloc(len);
+	const u32 len = strlen(shaderName) + strlen(RES_HOME) + 2;
+	i8 *absPath = malloc(len);
 	snprintf(absPath, len, "%s/%s", RES_HOME, shaderName);
 	UtilsDebugPrint("Loading %s", absPath);
 	FILE *f = fopen(absPath, "rb");
@@ -674,7 +675,7 @@ struct File LoadShader(const char *shaderName)
 
 	out.contents = malloc(out.size);
 	const uint64_t numRead = fread(out.contents,
-			sizeof (char), out.size, f);
+			sizeof (i8), out.size, f);
 
 	UtilsDebugPrint("Read %lu bytes. Expected %lu bytes",
 			numRead, out.size);
@@ -683,21 +684,21 @@ struct File LoadShader(const char *shaderName)
 	return out;
 }
 
-int CompileShader(const struct File *shader, int shaderType,
-		uint32_t *pHandle)
+i32 CompileShader(const struct File *shader, i32 shaderType,
+		u32 *pHandle)
 {
 	GLCHECK(*pHandle = glCreateShader(shaderType));
 	GLCHECK(glShaderSource(*pHandle, 1,
 			(const GLchar **)&shader->contents,
 			(const GLint*)&shader->size));
 	GLCHECK(glCompileShader(*pHandle));
-	int compileStatus = 0;
+	i32 compileStatus = 0;
 	GLCHECK(glGetShaderiv(*pHandle, GL_COMPILE_STATUS,
 			&compileStatus));
 	if (!compileStatus) {
-		int len = 0;
+		i32 len = 0;
 		GLCHECK(glGetShaderiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
-		char *msg = malloc(len);
+		i8 *msg = malloc(len);
 		GLCHECK(glGetShaderInfoLog(*pHandle, len, &len, msg));
 		UtilsDebugPrint("ERROR: Failed to compile shader. %s", msg);
 		free(msg);
@@ -706,20 +707,20 @@ int CompileShader(const struct File *shader, int shaderType,
 	return compileStatus;
 }
 
-int LinkProgram(const uint32_t vs, const uint32_t fs,
-		uint32_t *pHandle)
+i32 LinkProgram(const u32 vs, const u32 fs,
+		u32 *pHandle)
 {
 	GLCHECK(*pHandle = glCreateProgram());
 	GLCHECK(glAttachShader(*pHandle, vs));
 	GLCHECK(glAttachShader(*pHandle, fs));
 	GLCHECK(glLinkProgram(*pHandle));
 
-	int linkStatus = 0;
+	i32 linkStatus = 0;
 	GLCHECK(glGetProgramiv(*pHandle, GL_LINK_STATUS, &linkStatus));
 	if (!linkStatus) {
-		int len = 0;
+		i32 len = 0;
 		GLCHECK(glGetProgramiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
-		char *msg = malloc(len);
+		i8 *msg = malloc(len);
 		GLCHECK(glGetProgramInfoLog(*pHandle, len, &len, msg));
 		UtilsDebugPrint("ERROR: Failed to link shaders. %s", msg);
 		free(msg);
@@ -729,8 +730,8 @@ int LinkProgram(const uint32_t vs, const uint32_t fs,
 }
 
 
-void OnFramebufferResize(GLFWwindow *window, int width,
-		int height)
+void OnFramebufferResize(GLFWwindow *window, i32 width,
+		i32 height)
 {
 	GLCHECK(glViewport(0, 0, width, height));
 	struct Game *game = glfwGetWindowUserPointer(window);
@@ -739,13 +740,13 @@ void OnFramebufferResize(GLFWwindow *window, int width,
 	InitGBuffer(&game->gbuffer, width, height);
 }
 
-struct ModelProxy *LoadModel(const char *filename)
+struct ModelProxy *LoadModel(const i8 *filename)
 {
-	const char *absPath = UtilsFormatStr("%s/%s", RES_HOME, filename);
+	const i8 *absPath = UtilsFormatStr("%s/%s", RES_HOME, filename);
 	struct Model* model = OLLoad(absPath);
 	struct ModelProxy *proxy = NULL;
     if (model) {
-	    for (uint32_t i = 0; i < model->NumMeshes; ++i) {
+	    for (u32 i = 0; i < model->NumMeshes; ++i) {
 		    const struct Mesh *mesh = model->Meshes + i;
 		    UtilsDebugPrint("Mesh %s, faces: %u, normals: %u, positions: %u, texCoords: %u",
 					mesh->Name, mesh->NumFaces,
@@ -766,16 +767,16 @@ void PrintModelToFile(const struct Model *m)
 	}
 
 	FILE *out = fopen("model.txt", "w");
-	for (uint32_t i = 0; i < m->NumMeshes; ++i) {
+	for (u32 i = 0; i < m->NumMeshes; ++i) {
 		fprintf(out, "%s\n", m->Meshes[i].Name);
 		fprintf(out, "Num positions: %d, num indices: %d\n", m->Meshes[i].NumPositions,
 				m->Meshes[i].NumFaces);
-		for (uint32_t j = 0; j < m->Meshes[i].NumFaces; j += 3) {
+		for (u32 j = 0; j < m->Meshes[i].NumFaces; j += 3) {
 			fprintf(out, "%d %d %d\n", m->Meshes[i].Faces[j].posIdx,
 					m->Meshes[i].Faces[j + 1].posIdx,
 					m->Meshes[i].Faces[j + 2].posIdx);
 		}
-		for (uint32_t j = 0; j < m->Meshes[i].NumPositions; ++j) {
+		for (u32 j = 0; j < m->Meshes[i].NumPositions; ++j) {
 			fprintf(out, "%f %f %f\n", m->Meshes[i].Positions[j].x,
 				m->Meshes[i].Positions[j].y,
 				m->Meshes[i].Positions[j].z);
@@ -788,7 +789,7 @@ void PrintModelToFile(const struct Model *m)
 void ValidateModelProxy(const struct ModelProxy *m)
 {
 	UtilsDebugPrint("Validating ModelProxy. Num meshes: %d", m->numMeshes);
-	for (uint32_t i = 0; i < m->numMeshes; ++i) {
+	for (u32 i = 0; i < m->numMeshes; ++i) {
 		UtilsDebugPrint("Mesh %d, Num indices: %d", i, m->meshes[i].numIndices);
 	}
 }
@@ -812,20 +813,20 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 	// then follows next cube and it's indices start from 8 and not from 1
 	// 12 10 8
 	// thus we add indexOffset and subtract it from index from *.obj
-	uint32_t posIdxOffset = 0;
-	uint32_t normIdxOffset = 0;
-	uint32_t texIdxOffset = 0;
-	for (uint32_t i = 0; i < m->NumMeshes; ++i) {
+	u32 posIdxOffset = 0;
+	u32 normIdxOffset = 0;
+	u32 texIdxOffset = 0;
+	for (u32 i = 0; i < m->NumMeshes; ++i) {
 	    GLCHECK(glGenVertexArrays(1, &ret->meshes[i].vao));
 	    GLCHECK(glGenBuffers(1, &ret->meshes[i].vbo));
 	    GLCHECK(glGenBuffers(1, &ret->meshes[i].ebo));
 
-		uint32_t *indices = malloc(sizeof *indices * m->Meshes[i].NumFaces);
+		u32 *indices = malloc(sizeof *indices * m->Meshes[i].NumFaces);
 		struct Vertex *vertices = malloc(sizeof *vertices * m->Meshes[i].NumFaces);
-		for (uint32_t j = 0; j < m->Meshes[i].NumFaces; ++j) {
-			const uint32_t posIdx = m->Meshes[i].Faces[j].posIdx - posIdxOffset;
-			const uint32_t normIdx = m->Meshes[i].Faces[j].normIdx - normIdxOffset;
-			const uint32_t texIdx = m->Meshes[i].Faces[j].texIdx - texIdxOffset;
+		for (u32 j = 0; j < m->Meshes[i].NumFaces; ++j) {
+			const u32 posIdx = m->Meshes[i].Faces[j].posIdx - posIdxOffset;
+			const u32 normIdx = m->Meshes[i].Faces[j].normIdx - normIdxOffset;
+			const u32 texIdx = m->Meshes[i].Faces[j].texIdx - texIdxOffset;
 			assert(posIdx < m->Meshes[i].NumPositions);
 			assert(normIdx < m->Meshes[i].NumNormals);
 			assert(texIdx < m->Meshes[i].NumTexCoords);
@@ -851,7 +852,7 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 
 
 	    GLCHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ret->meshes[i].ebo));
-	    GLCHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * m->Meshes[i].NumFaces,
+	    GLCHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * m->Meshes[i].NumFaces,
 				indices, GL_STATIC_DRAW));
 
 	    GLCHECK(glEnableVertexAttribArray(0));
@@ -883,15 +884,15 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 }
 
 
-uint32_t GetUniformLocation(uint32_t programHandle, const char *name)
+u32 GetUniformLocation(u32 programHandle, const i8 *name)
 {
-	GLCHECK(uint32_t loc = glGetUniformLocation(programHandle, name));
+	GLCHECK(u32 loc = glGetUniformLocation(programHandle, name));
 	return loc;
 }
 
-void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const void *data, enum UniformType type)
+void SetUniform(u32 programHandle, const i8 *name, u32 size, const void *data, enum UniformType type)
 {
-	const uint32_t loc = GetUniformLocation(programHandle, name);
+	const u32 loc = GetUniformLocation(programHandle, name);
 	switch (type) {
         case UT_MAT4:
 			GLCHECK(glUniformMatrix4fv(loc, 1, GL_FALSE, data));
@@ -907,32 +908,32 @@ void SetUniform(uint32_t programHandle, const char *name, uint32_t size, const v
         case UT_FLOAT:
 			break;
         case UT_INT:
-			GLCHECK(glUniform1i(loc, *(const int32_t *)data));
+			GLCHECK(glUniform1i(loc, *(const i32 *)data));
 			break;
         case UT_UINT:
-			GLCHECK(glUniform1ui(loc, *(const uint32_t *)data));
+			GLCHECK(glUniform1ui(loc, *(const u32 *)data));
                 break;
         }
 }
 
-double GetDeltaTime()
+f64 GetDeltaTime()
 {
-	static double prevTime = 0.0;
-	const double now = glfwGetTime();
-	const double dt = now - prevTime;
+	static f64 prevTime = 0.0;
+	const f64 now = glfwGetTime();
+	const f64 dt = now - prevTime;
 	prevTime = now;
 	return dt;
 }
 
-uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
-		int format, int type, int attachment, int genFB, const char *imagePath)
+u32 CreateTexture2D(u32 width, u32 height, i32 internalFormat,
+		i32 format, i32 type, i32 attachment, i32 genFB, const i8 *imagePath)
 {
-	uint8_t *data = NULL;
+	u8 *data = NULL;
 	if (imagePath)
 	{
-		int w = 0;
-		int h = 0;
-		int channelsInFile = 0;
+		i32 w = 0;
+		i32 h = 0;
+		i32 channelsInFile = 0;
 		data = stbi_load(UtilsFormatStr("%s/%s", RES_HOME, imagePath), &w, &h,
 			&channelsInFile, STBI_rgb_alpha);
 		if (!data) {
@@ -943,7 +944,7 @@ uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
 		height = h;
 	}
 
-	uint32_t handle = 0;
+	u32 handle = 0;
 	glGenTextures(1, &handle);
 	glBindTexture(GL_TEXTURE_2D, handle);
 	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, data);
@@ -962,7 +963,7 @@ uint32_t CreateTexture2D(uint32_t width, uint32_t height, int internalFormat,
 
 void InitQuadPass(struct FullscreenQuadPass *fsqPass)
 {
-	const float quadVertices[] = {
+	const f32 quadVertices[] = {
 		// positions        // texture Coords
 		-1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
 		 1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
@@ -976,9 +977,9 @@ void InitQuadPass(struct FullscreenQuadPass *fsqPass)
 	glBindBuffer(GL_ARRAY_BUFFER, fsqPass->vbo);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
 	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
 	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
 }
 
 void RenderQuad(const struct FullscreenQuadPass *fsqPass)
@@ -988,7 +989,7 @@ void RenderQuad(const struct FullscreenQuadPass *fsqPass)
     glBindVertexArray(0);
 }
 
-int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
+i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight)
 {
 	GLCHECK(glGenFramebuffers(1, &gbuffer->framebuffer));
     GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, gbuffer->framebuffer));
@@ -1007,7 +1008,7 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 	gbuffer->albedo = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE,
 		GL_COLOR_ATTACHMENT2, GL_TRUE, NULL);
 
-	const uint32_t attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
+	const u32 attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
 		GL_COLOR_ATTACHMENT2 };
 	GLCHECK(glDrawBuffers(ARRAY_COUNT(attachments), attachments));
 
@@ -1028,7 +1029,7 @@ int InitGBuffer(struct GBuffer *gbuffer, const int fbWidth, const int fbHeight)
 	return 1;
 }
 
-void GetNormal(const SMikkTSpaceContext * pContext, float fvNormOut[], const int iFace, const int iVert)
+void GetNormal(const SMikkTSpaceContext * pContext, f32 fvNormOut[], const i32 iFace, const i32 iVert)
 {
 	struct CalculateTangetData *data = pContext->m_pUserData;
 	fvNormOut[0] = data->vertices[iFace * 3 + iVert].normal.X;
@@ -1036,7 +1037,7 @@ void GetNormal(const SMikkTSpaceContext * pContext, float fvNormOut[], const int
 	fvNormOut[2] = data->vertices[iFace * 3 + iVert].normal.Z;
 }
 
-void GetPosition(const SMikkTSpaceContext * pContext, float fvPosOut[], const int iFace, const int iVert)
+void GetPosition(const SMikkTSpaceContext * pContext, f32 fvPosOut[], const i32 iFace, const i32 iVert)
 {
 	struct CalculateTangetData *data = pContext->m_pUserData;
 	fvPosOut[0] = data->vertices[iFace * 3 + iVert].position.X;
@@ -1044,7 +1045,7 @@ void GetPosition(const SMikkTSpaceContext * pContext, float fvPosOut[], const in
 	fvPosOut[2] = data->vertices[iFace * 3 + iVert].position.Z;
 }
 
-void GetTexCoords(const SMikkTSpaceContext * pContext, float fvTexcOut[], const int iFace, const int iVert)
+void GetTexCoords(const SMikkTSpaceContext * pContext, f32 fvTexcOut[], const i32 iFace, const i32 iVert)
 {
 	struct CalculateTangetData *data = pContext->m_pUserData;
 	fvTexcOut[0] = data->vertices[iFace * 3 + iVert].texCoords.X;
@@ -1052,13 +1053,13 @@ void GetTexCoords(const SMikkTSpaceContext * pContext, float fvTexcOut[], const 
 }
 
 
-int GetNumVerticesOfFace(const SMikkTSpaceContext * pContext, const int iFace)
+i32 GetNumVerticesOfFace(const SMikkTSpaceContext * pContext, const i32 iFace)
 {
 	return 3;
 }
 
-void SetTSpaceBasic(const SMikkTSpaceContext * pContext, const float fvTangent[],
-		const float fSign, const int iFace, const int iVert)
+void SetTSpaceBasic(const SMikkTSpaceContext * pContext, const f32 fvTangent[],
+		const f32 fSign, const i32 iFace, const i32 iVert)
 {
 	struct CalculateTangetData *data = pContext->m_pUserData;
 	data->vertices[iFace * 3 + iVert].tangent.X = fvTangent[0];
@@ -1067,7 +1068,7 @@ void SetTSpaceBasic(const SMikkTSpaceContext * pContext, const float fvTangent[]
 	data->vertices[iFace * 3 + iVert].tangent.W = fSign;
 }
 
-int GetNumFaces(const SMikkTSpaceContext * pContext)
+i32 GetNumFaces(const SMikkTSpaceContext * pContext)
 {
 	struct CalculateTangetData *data = pContext->m_pUserData;
 	return data->numIndices / 3;
@@ -1087,10 +1088,10 @@ void CalculateTangentArray(struct CalculateTangetData *data)
 	genTangSpaceDefault(&context);
 }
 
-void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name, const char *label)
+void SetObjectName(enum ObjectIdentifier objectIdentifier, u32 name, const i8 *label)
 {
-	const char *prefix = NULL;
-	int identifier = 0;
+	const i8 *prefix = NULL;
+	i32 identifier = 0;
 	switch (objectIdentifier) {
         case OI_BUFFER:
 			prefix = "BUFFER";
@@ -1154,13 +1155,13 @@ void SetObjectName(enum ObjectIdentifier objectIdentifier, uint32_t name, const 
 			break;
         }
 
-	const char *fullLabel = UtilsFormatStr("%s_%s", label, prefix);
+	const i8 *fullLabel = UtilsFormatStr("%s_%s", label, prefix);
 	GLCHECK(glObjectLabel(identifier, name, strlen(fullLabel), fullLabel));
 }
 
-int IsKeyPressed(GLFWwindow *window, int key)
+i32 IsKeyPressed(GLFWwindow *window, i32 key)
 {
-	const int state = glfwGetKey(window, key);
+	const i32 state = glfwGetKey(window, key);
 	return state == GLFW_PRESS || state == GLFW_REPEAT;
 }
 
@@ -1246,18 +1247,18 @@ void ProcessInput(GLFWwindow* window)
 	}
 }
 
-void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat,
-		int format, int type)
+void Texture2D_Load(struct Texture2D *t, const i8 *texPath, i32 internalFormat,
+		i32 format, i32 type)
 {
-	int channelsInFile = 0;
-	uint8_t *data = stbi_load(UtilsFormatStr("%s/%s", RES_HOME, texPath), &t->width, &t->height,
+	i32 channelsInFile = 0;
+	u8 *data = stbi_load(UtilsFormatStr("%s/%s", RES_HOME, texPath), &t->width, &t->height,
 		&channelsInFile, STBI_rgb_alpha);
 	if (!data) {
 		UtilsDebugPrint("ERROR: Failed to load %s", texPath);
 		exit(-1);
 	}
 
-	const int loc = UtilsStrFindLastChar(texPath, '/');
+	const i32 loc = UtilsStrFindLastChar(texPath, '/');
 	t->name = strdup(texPath + loc + 1);
 
 	UtilsDebugPrint("Loaded %s: %dx%d, channels: %d", t->name, t->width, t->height,
@@ -1276,7 +1277,7 @@ void Texture2D_Load(struct Texture2D *t, const char *texPath, int internalFormat
 }
 
 void Camera_Init(struct Camera *camera, const Vec3D *position,
-		float fov, float aspectRatio, float zNear, float zFar)
+		f32 fov, f32 aspectRatio, f32 zNear, f32 zFar)
 {
 	const Vec3D front = { -0.390251f, -0.463592f, -0.795480f };
 	const Vec3D up = { 0.0f, 1.0f, 0.0f };
@@ -1291,13 +1292,13 @@ void Camera_Init(struct Camera *camera, const Vec3D *position,
 
 void Game_Update(struct Game *game)
 {
-	const double dt = GetDeltaTime();
+	const f64 dt = GetDeltaTime();
 	const Vec3D focusPos = MathVec3DAddition(&game->camera.position, &game->camera.front);
 	const Vec3D up = { 0.0f, 1.0f, 0.0f };
 	game->camera.view = MathMat4X4ViewAt(&game->camera.position, &focusPos, &up);
 }
 
-void PushRenderPassAnnotation(const char* passName)
+void PushRenderPassAnnotation(const i8* passName)
 {
 	glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(passName), passName);
 }
@@ -1318,9 +1319,9 @@ Mat4X4 TransformToMat4X4(const struct Transform *t)
 }
 
 void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,
-			   const struct Transform *decalTransforms, uint32_t numDecals)
+			   const struct Transform *decalTransforms, u32 numDecals)
 {
-  for (uint32_t i = 0; i < numDecals; ++i) {
+  for (u32 i = 0; i < numDecals; ++i) {
     const Mat4X4 translation = MathMat4X4TranslateFromVec3D(&decalTransforms[i].translation);
     const Vec3D angles = {MathToRadians(decalTransforms[i].rotation.X),
       MathToRadians(decalTransforms[i].rotation.Y),
