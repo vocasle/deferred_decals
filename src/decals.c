@@ -12,6 +12,7 @@
 #include "objloader.h"
 #include "mymath.h"
 #include "defines.h"
+#include "renderer.h"
 
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
@@ -38,59 +39,6 @@ struct Transform {
 	Vec3D translation;
 	Vec3D rotation;
 	Vec3D scale;
-};
-
-struct File {
-	i8 *contents;
-	uint64_t size;
-};
-
-struct Vertex {
-	Vec3D position;
-	Vec3D normal;
-	Vec2D texCoords;
-	Vec4D tangent;
-};
-
-struct MeshProxy {
-	u32 vao;
-	u32 vbo;
-	u32 ebo;
-	u32 numIndices;
-	Mat4X4 world;
-};
-
-struct ModelProxy {
-	struct MeshProxy *meshes;
-	u32 numMeshes;
-};
-
-enum UniformType {
-	UT_MAT4,
-	UT_VEC4F,
-	UT_VEC3F,
-	UT_VEC2F,
-	UT_FLOAT,
-	UT_INT,
-	UT_UINT,
-};
-
-enum ObjectIdentifier {
-	OI_BUFFER,
-	OI_INDEX_BUFFER,
-	OI_VERTEX_BUFFER,
-	OI_SHADER,
-	OI_VERTEX_SHADER,
-	OI_FRAGMENT_SHADER,
-	OI_PROGRAM,
-	OI_VERTEX_ARRAY,
-	OI_QUERY,
-	OI_PROGRAM_PIPELINE,
-	OI_TRANSFORM_FEEDBACK,
-	OI_SAMPLER,
-	OI_TEXTURE,
-	OI_RENDERBUFFER,
-	OI_FRAMEBUFFER,
 };
 
 enum GBufferDebugMode {
@@ -145,25 +93,19 @@ struct Game {
 	u32 numTextures;
 	struct Camera camera;
 	struct nk_glfw nuklear;
+	struct Material **materials;
+	u32 numMaterials;
 };
 
-struct File LoadShader(const i8 *shaderName);
-i32 LinkProgram(const u32 vs, const u32 fs, u32 *pHandle);
-i32 CompileShader(const struct File *shader, i32 shaderType,
-		u32 *pHandle);
 void OnFramebufferResize(GLFWwindow *window, i32 width, i32 height);
 
 struct ModelProxy *LoadModel(const i8 *filename);
 struct ModelProxy *CreateModelProxy(const struct Model *m);
 
-void SetUniform(u32 programHandle, const i8 *name, u32 size, const void *data, enum UniformType type);
-
 f64 GetDeltaTime();
 
 u32 CreateTexture2D(u32 width, u32 height, i32 internalFormat,
 		i32 format, i32 type, i32 attachment, i32 genFB, const i8 *imagePath);
-
-i32 CreateProgram(const i8 *fs, const i8 *vs, u32 *programHandle, const i8 *programName);
 
 void RenderQuad(const struct FullscreenQuadPass *fsqPass);
 
@@ -176,9 +118,6 @@ struct CalculateTangetData {
 	u32 numIndices;
 };
 void CalculateTangentArray(struct CalculateTangetData *data);
-
-void SetObjectName(enum ObjectIdentifier objectIdentifier, u32 name,
-		const i8 *label);
 
 void ProcessInput(GLFWwindow* window);
 
@@ -201,25 +140,7 @@ void InitNuklear(GLFWwindow *window);
 
 void DeinitNuklear(GLFWwindow* window);
 
-void DebugBreak()
-{
-#if _WIN32
-	__debugbreak();
-#else
-		raise(SIGTRAP);
-#endif
-}
-
-#define GLCHECK(x) x; \
-do { \
-	GLenum err; \
-	while((err = glGetError()) != GL_NO_ERROR) \
-	{ \
-		UtilsDebugPrint("ERROR in call to OpenGL at %s:%d", __FILE__, __LINE__); \
-		DebugBreak(); \
-		exit(-1); \
-	} \
-} while (0)
+void LoadMaterials(struct Game *game);
 
 #define ARRAY_COUNT(x) (u32)(sizeof(x) / sizeof(x[0]))
 
@@ -230,22 +151,13 @@ MessageCallback(GLenum source,
                 GLenum severity,
                 GLsizei length,
                 const GLchar* message,
-                const void* userParam)
-{
-	if (source != GL_DEBUG_SOURCE_APPLICATION && severity >= GL_DEBUG_SEVERITY_LOW) {
-		fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
-			(type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
-			type, severity, message);
-	}
-
-	if (type == GL_DEBUG_TYPE_ERROR) {
-		exit(-1);
-	}
-}
+                const void* userParam);
 
 i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight);
 
 GLFWwindow *InitGLFW(i32 width, i32 height, const i8 *title);
+
+struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name);
 
 i32 main(void)
 {
@@ -257,37 +169,15 @@ i32 main(void)
 	glfwSetWindowUserPointer(window, &game);
     glfwSetFramebufferSizeCallback(window, OnFramebufferResize);
 
-    struct ModelProxy *modelProxy = LoadModel("assets/room.obj");
+    struct ModelProxy *room = LoadModel("assets/room.obj");
 	{
 		Mat4X4 rotate90 = MathMat4X4RotateY(MathToRadians(-90.0f));
-		for (u32 i = 0; i < modelProxy->numMeshes; ++i) {
-			modelProxy->meshes[i].world = rotate90;
+		for (u32 i = 0; i < room->numMeshes; ++i) {
+			room->meshes[i].world = rotate90;
 		}
 	}
 
-	u32 phongProgram = 0;
-	if (!CreateProgram("shaders/frag.glsl", "shaders/vert.glsl", &phongProgram, "Phong")) {
-		UtilsFatalError("ERROR: Failed to create program\n");
-		return -1;
-	}
-
-	u32 deferredDecal = 0;
-	if (!CreateProgram("shaders/deferred_decal.glsl", "shaders/vert.glsl", &deferredDecal, "Decal")) {
-		UtilsFatalError("ERROR: Failed to create program\n");
-		return -1;
-	}
-
-	u32 gbufferProgram = 0;
-	if (!CreateProgram("shaders/gbuffer_frag.glsl", "shaders/vert.glsl", &gbufferProgram, "GBuffer")) {
-		UtilsFatalError("ERROR: Failed to create program\n");
-		return -1;
-	}
-
-	u32 deferredProgram = 0;
-	if (!CreateProgram("shaders/deferred_frag.glsl", "shaders/deferred_vert.glsl", &deferredProgram, "Deffered")) {
-		UtilsFatalError("ERROR: Failed to create program\n");
-		return -1;
-	}
+	LoadMaterials(&game);
 
 	glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
@@ -392,32 +282,41 @@ i32 main(void)
 			PushRenderPassAnnotation("GBuffer Pass");
 			{
 				PushRenderPassAnnotation("Geometry Pass");
+				struct Material *m = Game_FindMaterialByName(&game, "GBuffer");
 				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, game.gbuffer.framebuffer));
 				GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-				GLCHECK(glUseProgram(gbufferProgram));
+				GLCHECK(glUseProgram(Material_GetHandle(m)));
 
-				SetUniform(gbufferProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
-				SetUniform(gbufferProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
-				SetUniform(gbufferProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
-				SetUniform(gbufferProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+				Material_SetUniform(m, "g_view", sizeof(Mat4X4), &game.camera.view,
+					UT_MAT4);
+				Material_SetUniform(m, "g_proj", sizeof(Mat4X4), &game.camera.proj,
+					UT_MAT4);
+				Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+				Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 
-				SetUniform(gbufferProgram, "g_albedoTex", sizeof(i32), &C_ALBEDO_TEX_LOC, UT_INT);
-				SetUniform(gbufferProgram, "g_normalTex", sizeof(i32), &C_NORMAL_TEX_LOC, UT_INT);
-				SetUniform(gbufferProgram, "g_roughnessTex", sizeof(i32),
+				Material_SetUniform(m, "g_albedoTex", sizeof(i32), &C_ALBEDO_TEX_LOC,
+					UT_INT);
+				Material_SetUniform(m, "g_normalTex", sizeof(i32), &C_NORMAL_TEX_LOC,
+					UT_INT);
+				Material_SetUniform(m, "g_roughnessTex", sizeof(i32),
 					&C_ROUGHNESS_TEX_LOC, UT_INT);
 
-				for (u32 i = 0; i < modelProxy->numMeshes; ++i) {
+				for (u32 i = 0; i < room->numMeshes; ++i) {
 					GLCHECK(glActiveTexture(GL_TEXTURE0));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[C_RUSTY_METAL_TEX_IDX].handle));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D,
+						game.albedoTextures[C_RUSTY_METAL_TEX_IDX].handle));
 					GLCHECK(glActiveTexture(GL_TEXTURE1));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[C_RUSTY_METAL_TEX_IDX].handle));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, 
+						game.normalTextures[C_RUSTY_METAL_TEX_IDX].handle));
 					GLCHECK(glActiveTexture(GL_TEXTURE2));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.roughnessTextures[C_RUSTY_METAL_TEX_IDX].handle));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, 
+						game.roughnessTextures[C_RUSTY_METAL_TEX_IDX].handle));
 
-					GLCHECK(glBindVertexArray(modelProxy->meshes[i].vao));
-					SetUniform(gbufferProgram, "g_world", sizeof(Mat4X4), &modelProxy->meshes[i].world, UT_MAT4);
-					GLCHECK(glDrawElements(GL_TRIANGLES, modelProxy->meshes[i].numIndices, GL_UNSIGNED_INT,
-						NULL));
+					GLCHECK(glBindVertexArray(room->meshes[i].vao));
+					Material_SetUniform(m, "g_world", sizeof(Mat4X4), 
+						&room->meshes[i].world, UT_MAT4);
+					GLCHECK(glDrawElements(GL_TRIANGLES, room->meshes[i].numIndices, 
+						GL_UNSIGNED_INT, NULL));
 				}
 				PopRenderPassAnnotation();
 			}
@@ -425,6 +324,7 @@ i32 main(void)
 			// Decal pass
 			{
 				PushRenderPassAnnotation("Decal Pass");
+				struct Material *m = Game_FindMaterialByName(&game, "Decal");
 				// Set read only depth
 				glDepthFunc(GL_GREATER);
 				glDepthMask(GL_FALSE);
@@ -440,40 +340,59 @@ i32 main(void)
 				// TODO: Reconstruct world position from depth
 				// TODO: Need to copy depth buffer
 				for (u32 i = 0; i < unitCube->numMeshes; ++i) {
-					GLCHECK(glUseProgram(deferredDecal));
+					GLCHECK(glUseProgram(Material_GetHandle(m)));
 					GLCHECK(glActiveTexture(GL_TEXTURE0));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
 					GLCHECK(glActiveTexture(GL_TEXTURE1));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[C_WOOD_TEX_IDX].handle));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, 
+						game.albedoTextures[C_WOOD_TEX_IDX].handle));
 					GLCHECK(glActiveTexture(GL_TEXTURE2));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[C_WOOD_TEX_IDX].handle));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, 
+						game.normalTextures[C_WOOD_TEX_IDX].handle));
 					GLCHECK(glActiveTexture(GL_TEXTURE3));
 
-					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(&game.camera.view, &game.camera.proj);
+					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(
+						&game.camera.view, &game.camera.proj);
 					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
 
-					const Vec4D rtSize = { game.framebufferSize.width, game.framebufferSize.height,
-						1.0f / game.framebufferSize.width, 1.0f / game.framebufferSize.height };
+					const Vec4D rtSize = { game.framebufferSize.width, 
+						game.framebufferSize.height,
+						1.0f / game.framebufferSize.width, 
+						1.0f / game.framebufferSize.height };
 
-					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
-					SetUniform(deferredDecal, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
-					SetUniform(deferredDecal, "g_depth", sizeof(i32), &C_DECAL_DEPTH_TEX_LOC, UT_INT);
-					SetUniform(deferredDecal, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
-					SetUniform(deferredDecal, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
-					SetUniform(deferredDecal, "g_invViewProj", sizeof(Mat4X4), &invViewProj, UT_MAT4);
-					SetUniform(deferredDecal, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
-					SetUniform(deferredDecal, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
-					SetUniform(deferredDecal, "g_albedo", sizeof(i32), &C_DECAL_ALBEDO_TEX_LOC, UT_INT);
-					SetUniform(deferredDecal, "g_normal", sizeof(i32), &C_DECAL_NORMAL_TEX_LOC, UT_INT);
+					Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos,
+						UT_VEC3F);
+					Material_SetUniform(m, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
+					Material_SetUniform(m, "g_depth", sizeof(i32), 
+						&C_DECAL_DEPTH_TEX_LOC, UT_INT);
+					Material_SetUniform(m, "g_view", sizeof(Mat4X4), &game.camera.view,
+						UT_MAT4);
+					Material_SetUniform(m, "g_proj", sizeof(Mat4X4), &game.camera.proj, 
+						UT_MAT4);
+					Material_SetUniform(m, "g_invViewProj", sizeof(Mat4X4), &invViewProj, 
+						UT_MAT4);
+					Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos, 
+						UT_VEC3F);
+					Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos, 
+						UT_VEC3F);
+					Material_SetUniform(m, "g_albedo", sizeof(i32), 
+						&C_DECAL_ALBEDO_TEX_LOC, UT_INT);
+					Material_SetUniform(m, "g_normal", sizeof(i32), 
+						&C_DECAL_NORMAL_TEX_LOC, UT_INT);
 					GLCHECK(glBindVertexArray(unitCube->meshes[i].vao));
 					for (u32 n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
-						SetUniform(deferredDecal, "g_world", sizeof(Mat4X4), &decalWorlds[n], UT_MAT4);
-						SetUniform(deferredDecal, "g_decalInvWorld", sizeof(Mat4X4), &decalInvWorlds[n], UT_MAT4);
+						Material_SetUniform(m, "g_world", sizeof(Mat4X4), 
+							&decalWorlds[n], UT_MAT4);
+						Material_SetUniform(m, "g_decalInvWorld", sizeof(Mat4X4), 
+							&decalInvWorlds[n], UT_MAT4);
 						GLCHECK(glActiveTexture(GL_TEXTURE1));
-						GLCHECK(glBindTexture(GL_TEXTURE_2D, game.albedoTextures[DECAL_TEXTURE_INDICES[n]].handle));
+						GLCHECK(glBindTexture(GL_TEXTURE_2D, 
+							game.albedoTextures[DECAL_TEXTURE_INDICES[n]].handle));
 						GLCHECK(glActiveTexture(GL_TEXTURE2));
-						GLCHECK(glBindTexture(GL_TEXTURE_2D, game.normalTextures[DECAL_TEXTURE_INDICES[n]].handle));
-						GLCHECK(glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
+						GLCHECK(glBindTexture(GL_TEXTURE_2D, 
+							game.normalTextures[DECAL_TEXTURE_INDICES[n]].handle));
+						GLCHECK(glDrawElements(GL_TRIANGLES, 
+							unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
 					}
 				}
 				// Reset state
@@ -490,25 +409,26 @@ i32 main(void)
 		// Deferred Shading Pass
 		{
 			PushRenderPassAnnotation("Deferred Shading Pass");
+			struct Material *m = Game_FindMaterialByName(&game, "Deferred");
 			GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-			GLCHECK(glUseProgram(deferredProgram));
+			GLCHECK(glUseProgram(Material_GetHandle(m)));
 			GLCHECK(glActiveTexture(GL_TEXTURE0));
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.position));
 			GLCHECK(glActiveTexture(GL_TEXTURE1));
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.normal));
 			GLCHECK(glActiveTexture(GL_TEXTURE2));
 			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.albedo));
-			SetUniform(deferredProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
-			SetUniform(deferredProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
-			SetUniform(deferredProgram, "g_gbufferDebugMode", sizeof(i32),
+			Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+			Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+			Material_SetUniform(m, "g_gbufferDebugMode", sizeof(i32),
 					&game.gbufferDebugMode, UT_INT);
 
 			const u32 g_position = 0;
 			const u32 g_normal = 1;
 			const u32 g_albedo = 2;
-			SetUniform(deferredProgram, "g_position", sizeof(u32), &g_position, UT_INT);
-			SetUniform(deferredProgram, "g_normal", sizeof(u32), &g_normal, UT_INT);
-			SetUniform(deferredProgram, "g_albedo", sizeof(u32), &g_albedo, UT_INT);
+			Material_SetUniform(m, "g_position", sizeof(u32), &g_position, UT_INT);
+			Material_SetUniform(m, "g_normal", sizeof(u32), &g_normal, UT_INT);
+			Material_SetUniform(m, "g_albedo", sizeof(u32), &g_albedo, UT_INT);
 			RenderQuad(&fsqPass);
 			PopRenderPassAnnotation();
 		}
@@ -531,20 +451,23 @@ i32 main(void)
 		// Wireframe pass
 		{
 			PushRenderPassAnnotation("Wireframe Pass");
-			glUseProgram(phongProgram);
-			SetUniform(phongProgram, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
-			SetUniform(phongProgram, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
-			SetUniform(phongProgram, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
-			SetUniform(phongProgram, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
+			struct Material *m = Game_FindMaterialByName(&game, "Phong");
+			glUseProgram(Material_GetHandle(m));
+			Material_SetUniform(m, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
+			Material_SetUniform(m, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
+			Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
+			Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 			static const i32 isWireframe = 1;
-			SetUniform(phongProgram, "g_wireframe", sizeof(i32), &isWireframe, UT_INT);
+			Material_SetUniform(m, "g_wireframe", sizeof(i32), &isWireframe, UT_INT);
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			for (u32 i = 0; i < unitCube->numMeshes; ++i) {
 				glBindVertexArray(unitCube->meshes[i].vao);
 				for (u32 n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
-					SetUniform(phongProgram, "g_world", sizeof(Mat4X4), &decalWorlds[n], UT_MAT4);
-					glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL);
+					Material_SetUniform(m, "g_world", sizeof(Mat4X4), &decalWorlds[n],
+						UT_MAT4);
+					glDrawElements(GL_TRIANGLES, unitCube->meshes[i].numIndices, 
+						GL_UNSIGNED_INT, NULL);
 				}
 			}
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -602,108 +525,6 @@ i32 main(void)
 	DeinitNuklear(window);
     glfwTerminate();
     return 0;
-}
-
-i32 CreateProgram(const i8 *fs, const i8 *vs, u32 *programHandle, const i8 *programName)
-{
-	struct File fragSource = LoadShader(fs);
-	struct File vertSource = LoadShader(vs);
-
-	u32 fragHandle = 0;
-	if(!CompileShader(&fragSource, GL_FRAGMENT_SHADER, &fragHandle))
-	{
-		return 0;
-	}
-	u32 vertHandle = 0;
-	if(!CompileShader(&vertSource, GL_VERTEX_SHADER, &vertHandle))
-	{
-		return 0;
-	}
-	if (!LinkProgram(vertHandle, fragHandle, programHandle))
-	{
-		return 0;
-	}
-
-	SetObjectName(OI_FRAGMENT_SHADER, fragHandle, UtilsGetStrAfterChar(fs, '/'));
-	SetObjectName(OI_VERTEX_SHADER, vertHandle, UtilsGetStrAfterChar(vs, '/'));
-	SetObjectName(OI_PROGRAM, *programHandle, programName);
-	UtilsDebugPrint("Linked program %u (%s)", *programHandle, programName);
-	GLCHECK(glDeleteShader(vertHandle));
-	GLCHECK(glDeleteShader(fragHandle));
-	return 1;
-}
-
-struct File LoadShader(const i8 *shaderName)
-{
-	struct File out = {0};
-	const u32 len = strlen(shaderName) + strlen(RES_HOME) + 2;
-	i8 *absPath = malloc(len);
-	snprintf(absPath, len, "%s/%s", RES_HOME, shaderName);
-	UtilsDebugPrint("Loading %s", absPath);
-	FILE *f = fopen(absPath, "rb");
-	if (!f) {
-		free(absPath);
-		return out;
-	}
-
-	fseek(f, 0L, SEEK_END);
-	out.size = ftell(f);
-	rewind(f);
-
-	out.contents = malloc(out.size);
-	const uint64_t numRead = fread(out.contents,
-			sizeof (i8), out.size, f);
-
-	UtilsDebugPrint("Read %lu bytes. Expected %lu bytes",
-			numRead, out.size);
-	fclose(f);
-	free(absPath);
-	return out;
-}
-
-i32 CompileShader(const struct File *shader, i32 shaderType,
-		u32 *pHandle)
-{
-	GLCHECK(*pHandle = glCreateShader(shaderType));
-	GLCHECK(glShaderSource(*pHandle, 1,
-			(const GLchar **)&shader->contents,
-			(const GLint*)&shader->size));
-	GLCHECK(glCompileShader(*pHandle));
-	i32 compileStatus = 0;
-	GLCHECK(glGetShaderiv(*pHandle, GL_COMPILE_STATUS,
-			&compileStatus));
-	if (!compileStatus) {
-		i32 len = 0;
-		GLCHECK(glGetShaderiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
-		i8 *msg = malloc(len);
-		GLCHECK(glGetShaderInfoLog(*pHandle, len, &len, msg));
-		UtilsDebugPrint("ERROR: Failed to compile shader. %s", msg);
-		free(msg);
-	}
-
-	return compileStatus;
-}
-
-i32 LinkProgram(const u32 vs, const u32 fs,
-		u32 *pHandle)
-{
-	GLCHECK(*pHandle = glCreateProgram());
-	GLCHECK(glAttachShader(*pHandle, vs));
-	GLCHECK(glAttachShader(*pHandle, fs));
-	GLCHECK(glLinkProgram(*pHandle));
-
-	i32 linkStatus = 0;
-	GLCHECK(glGetProgramiv(*pHandle, GL_LINK_STATUS, &linkStatus));
-	if (!linkStatus) {
-		i32 len = 0;
-		GLCHECK(glGetProgramiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
-		i8 *msg = malloc(len);
-		GLCHECK(glGetProgramInfoLog(*pHandle, len, &len, msg));
-		UtilsDebugPrint("ERROR: Failed to link shaders. %s", msg);
-		free(msg);
-	}
-
-	return linkStatus;
 }
 
 
@@ -860,39 +681,6 @@ struct ModelProxy *CreateModelProxy(const struct Model *m)
 	return ret;
 }
 
-
-u32 GetUniformLocation(u32 programHandle, const i8 *name)
-{
-	GLCHECK(u32 loc = glGetUniformLocation(programHandle, name));
-	return loc;
-}
-
-void SetUniform(u32 programHandle, const i8 *name, u32 size, const void *data, enum UniformType type)
-{
-	const u32 loc = GetUniformLocation(programHandle, name);
-	switch (type) {
-        case UT_MAT4:
-			GLCHECK(glUniformMatrix4fv(loc, 1, GL_FALSE, data));
-			break;
-        case UT_VEC4F:
-			GLCHECK(glUniform4fv(loc, 1, data));
-			break;
-        case UT_VEC3F:
-			GLCHECK(glUniform3fv(loc, 1, data));
-			break;
-        case UT_VEC2F:
-			break;
-        case UT_FLOAT:
-			break;
-        case UT_INT:
-			GLCHECK(glUniform1i(loc, *(const i32 *)data));
-			break;
-        case UT_UINT:
-			GLCHECK(glUniform1ui(loc, *(const u32 *)data));
-                break;
-        }
-}
-
 f64 GetDeltaTime()
 {
 	static f64 prevTime = 0.0;
@@ -923,7 +711,7 @@ u32 CreateTexture2D(u32 width, u32 height, i32 internalFormat,
 	u32 handle = 0;
 	GLCHECK(glGenTextures(1, &handle));
 	GLCHECK(glBindTexture(GL_TEXTURE_2D, handle));
-	GLCHECK(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, 
+	GLCHECK(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat,
 		width, height, 0, format, type, data));
 	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
 	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
@@ -1064,77 +852,6 @@ void CalculateTangentArray(struct CalculateTangetData *data)
 
 	SMikkTSpaceContext context = { .m_pInterface = &interface, .m_pUserData = data };
 	genTangSpaceDefault(&context);
-}
-
-void SetObjectName(enum ObjectIdentifier objectIdentifier, u32 name, const i8 *label)
-{
-	const i8 *prefix = NULL;
-	i32 identifier = 0;
-	switch (objectIdentifier) {
-        case OI_BUFFER:
-			prefix = "BUFFER";
-			identifier = GL_BUFFER;
-			break;
-	case OI_INDEX_BUFFER:
-	  prefix = "EBO";
-	  identifier = GL_BUFFER;
-	  break;
-	case OI_VERTEX_BUFFER:
-	  prefix = "VBO";
-	  identifier = GL_BUFFER;
-	  break;
-        case OI_SHADER:
-			prefix = "SHADER";
-			identifier = GL_SHADER;
-			break;
-        case OI_VERTEX_SHADER:
-			prefix = "VS";
-			identifier = GL_SHADER;
-			break;
-        case OI_FRAGMENT_SHADER:
-			prefix = "FS";
-			identifier = GL_SHADER;
-			break;			
-        case OI_PROGRAM:
-			prefix = "PROGRAM";
-			identifier = GL_PROGRAM;
-			break;
-        case OI_VERTEX_ARRAY:
-			prefix = "VAO";
-			identifier = GL_VERTEX_ARRAY;
-			break;
-        case OI_QUERY:
-			prefix = "QUERY";
-			identifier = GL_QUERY;
-			break;
-        case OI_PROGRAM_PIPELINE:
-			prefix = "PROGRAM_PIPELINE";
-			identifier = GL_PROGRAM_PIPELINE;
-			break;
-        case OI_TRANSFORM_FEEDBACK:
-			prefix = "TRANSFORM_FEEDBACK";
-			identifier = GL_TRANSFORM_FEEDBACK;
-			break;
-        case OI_SAMPLER:
-			prefix = "SAMPLER";
-			identifier = GL_SAMPLER;
-			break;
-        case OI_TEXTURE:
-			prefix = "TEXTURE";
-			identifier = GL_TEXTURE;
-			break;
-        case OI_RENDERBUFFER:
-			prefix = "RENDERBUFFER";
-			identifier = GL_RENDERBUFFER;
-			break;
-        case OI_FRAMEBUFFER:
-			prefix = "FRAMEBUFFER";
-			identifier = GL_FRAMEBUFFER;
-			break;
-        }
-
-	const i8 *fullLabel = UtilsFormatStr("%s_%s", label, prefix);
-	GLCHECK(glObjectLabel(identifier, name, strlen(fullLabel), fullLabel));
 }
 
 i32 IsKeyPressed(GLFWwindow *window, i32 key)
@@ -1368,4 +1085,52 @@ GLFWwindow *InitGLFW(i32 width, i32 height, const i8 *title)
 	}
 
 	return window;
+}
+
+void LoadMaterials(struct Game *game)
+{
+	const struct MaterialCreateInfo materialCreateInfos[] = {
+		{"shaders/vert.glsl", "shaders/frag.glsl", "Phong"},
+		{"shaders/vert.glsl", "shaders/deferred_decal.glsl", "Decal"},
+		{"shaders/vert.glsl", "shaders/gbuffer_frag.glsl", "GBuffer"},
+		{"shaders/deferred_vert.glsl", "shaders/deferred_frag.glsl", "Deferred"}
+	};
+
+	game->materials = malloc(sizeof(struct Material*) * ARRAY_COUNT(materialCreateInfos));
+	game->numMaterials = ARRAY_COUNT(materialCreateInfos);
+
+	for (u32 i = 0; i < game->numMaterials; ++i) {
+		game->materials[i] = Material_Create(&materialCreateInfos[i]);
+	}
+}
+
+void GLAPIENTRY
+MessageCallback(GLenum source,
+                GLenum type,
+                GLuint id,
+                GLenum severity,
+                GLsizei length,
+                const GLchar* message,
+                const void* userParam)
+{
+	if (source != GL_DEBUG_SOURCE_APPLICATION && severity >= GL_DEBUG_SEVERITY_LOW) {
+		fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+			(type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""),
+			type, severity, message);
+	}
+
+	if (type == GL_DEBUG_TYPE_ERROR) {
+		exit(-1);
+	}
+}
+
+struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name)
+{
+	for (u32 i = 0; i < game->numMaterials; ++i) {
+		if (strcmp(name, Material_GetName(game->materials[i])) == 0) {
+			return game->materials[i];
+		}
+	}
+	UtilsDebugPrint("WARN: Failed to find material with name %s", name);
+	return NULL;
 }
