@@ -245,41 +245,18 @@ MessageCallback(GLenum source,
 
 i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight);
 
+GLFWwindow *InitGLFW(i32 width, i32 height, const i8 *title);
 
 i32 main(void)
 {
-    GLFWwindow* window = NULL;
-
-    /* Initialize the library */
-    if (!glfwInit()) {
-        return -1;
-	}
-
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-    /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
-    if (!window) {
-        glfwTerminate();
-        return -1;
-    }
+    GLFWwindow* window = InitGLFW(640, 480, "Deferred Decals");
 
 	struct Game game = { 0 };
 	glfwGetFramebufferSize(window, &game.framebufferSize.width,
 			&game.framebufferSize.height);
 	glfwSetWindowUserPointer(window, &game);
-
-    /* Make the window's context current */
-    glfwMakeContextCurrent(window);
-
-    const i32 version = gladLoadGL(glfwGetProcAddress);
-    if (version == 0) {
-	    return -1;
-	}
-
     glfwSetFramebufferSizeCallback(window, OnFramebufferResize);
+
     struct ModelProxy *modelProxy = LoadModel("assets/room.obj");
 	{
 		Mat4X4 rotate90 = MathMat4X4RotateY(MathToRadians(-90.0f));
@@ -1362,4 +1339,32 @@ void DeinitNuklear(GLFWwindow* window)
 {
 	struct Game* game = glfwGetWindowUserPointer(window);
 	nk_glfw3_shutdown(&game->nuklear);
+}
+
+GLFWwindow *InitGLFW(i32 width, i32 height, const i8 *title)
+{
+    if (!glfwInit()) {
+		UtilsFatalError("FATAL ERROR: Failed to initialize GLFW");
+	}
+
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    /* Create a windowed mode window and its OpenGL context */
+    GLFWwindow *window = glfwCreateWindow(width, height, title, NULL, NULL);
+    if (!window) {
+        glfwTerminate();
+        UtilsFatalError("FATAL ERROR: Failed to create window");
+    }
+
+    /* Make the window's context current */
+    glfwMakeContextCurrent(window);
+
+    const i32 version = gladLoadGL(glfwGetProcAddress);
+    if (version == 0) {
+	    UtilsFatalError("FATAL ERROR: Failed to load OpenGL");
+	}
+
+	return window;
 }
