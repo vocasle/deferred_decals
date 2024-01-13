@@ -56,11 +56,23 @@ enum ObjectIdentifier {
 	OI_FRAMEBUFFER,
 };
 
+struct Texture2D {
+	i32 width;
+	i32 height;
+	i8 *name;
+	u32 handle;
+	i32 samplerLocation;
+};
+
+/// Material
+#define MAX_SAMPLERS 16
 struct MaterialCreateInfo
 {
 	const i8 *vsPath;
 	const i8 *fsPath;
     const i8 *name;
+    const i8 *samplers[MAX_SAMPLERS];
+    u32 numSamplers;
 };
 
 struct Material;
@@ -71,6 +83,8 @@ void Material_SetUniform(struct Material *m, const i8 *name, u32 size,
     const void *data, enum UniformType type);
 u32 Material_GetHandle(const struct Material *m);
 const i8 *Material_GetName(const struct Material *m);
+void Material_SetTexture(struct Material *m, const i8 *name,
+    const struct Texture2D *t);
 
 // TODO Make private
 

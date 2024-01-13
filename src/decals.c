@@ -67,14 +67,6 @@ struct FramebufferSize {
 	i32 height;
 };
 
-struct Texture2D {
-	i32 width;
-	i32 height;
-	i8 *name;
-	u32 handle;
-	i32 samplerLocation;
-};
-
 struct Camera {
 	Mat4X4 view;
 	Mat4X4 proj;
@@ -294,23 +286,11 @@ i32 main(void)
 				Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 				Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 
-				Material_SetUniform(m, "g_albedoTex", sizeof(i32), &C_ALBEDO_TEX_LOC,
-					UT_INT);
-				Material_SetUniform(m, "g_normalTex", sizeof(i32), &C_NORMAL_TEX_LOC,
-					UT_INT);
-				Material_SetUniform(m, "g_roughnessTex", sizeof(i32),
-					&C_ROUGHNESS_TEX_LOC, UT_INT);
-
 				for (u32 i = 0; i < room->numMeshes; ++i) {
-					GLCHECK(glActiveTexture(GL_TEXTURE0));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D,
-						game.albedoTextures[C_RUSTY_METAL_TEX_IDX].handle));
-					GLCHECK(glActiveTexture(GL_TEXTURE1));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, 
-						game.normalTextures[C_RUSTY_METAL_TEX_IDX].handle));
-					GLCHECK(glActiveTexture(GL_TEXTURE2));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, 
-						game.roughnessTextures[C_RUSTY_METAL_TEX_IDX].handle));
+					Material_SetTexture(m, "g_albedoTex", &game.albedoTextures[C_RUSTY_METAL_TEX_IDX]);
+					Material_SetTexture(m, "g_normalTex", &game.normalTextures[C_RUSTY_METAL_TEX_IDX]);
+					Material_SetTexture(m, "g_roughnessTex", 
+						&game.roughnessTextures[C_RUSTY_METAL_TEX_IDX]);
 
 					GLCHECK(glBindVertexArray(room->meshes[i].vao));
 					Material_SetUniform(m, "g_world", sizeof(Mat4X4), 
@@ -341,15 +321,13 @@ i32 main(void)
 				// TODO: Need to copy depth buffer
 				for (u32 i = 0; i < unitCube->numMeshes; ++i) {
 					GLCHECK(glUseProgram(Material_GetHandle(m)));
+					// TODO: Replace with SetTexture 
+					// Material_SetTexture(m, "g_depth", 
+					// 	&game.gbuffer.gbufferDepthTex);
+					Material_SetUniform(m, "g_depth", sizeof(i32),
+						&C_DECAL_DEPTH_TEX_LOC, UT_INT);
 					GLCHECK(glActiveTexture(GL_TEXTURE0));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
-					GLCHECK(glActiveTexture(GL_TEXTURE1));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, 
-						game.albedoTextures[C_WOOD_TEX_IDX].handle));
-					GLCHECK(glActiveTexture(GL_TEXTURE2));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, 
-						game.normalTextures[C_WOOD_TEX_IDX].handle));
-					GLCHECK(glActiveTexture(GL_TEXTURE3));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));									
 
 					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(
 						&game.camera.view, &game.camera.proj);
@@ -363,8 +341,6 @@ i32 main(void)
 					Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos,
 						UT_VEC3F);
 					Material_SetUniform(m, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
-					Material_SetUniform(m, "g_depth", sizeof(i32), 
-						&C_DECAL_DEPTH_TEX_LOC, UT_INT);
 					Material_SetUniform(m, "g_view", sizeof(Mat4X4), &game.camera.view,
 						UT_MAT4);
 					Material_SetUniform(m, "g_proj", sizeof(Mat4X4), &game.camera.proj, 
@@ -375,24 +351,18 @@ i32 main(void)
 						UT_VEC3F);
 					Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos, 
 						UT_VEC3F);
-					Material_SetUniform(m, "g_albedo", sizeof(i32), 
-						&C_DECAL_ALBEDO_TEX_LOC, UT_INT);
-					Material_SetUniform(m, "g_normal", sizeof(i32), 
-						&C_DECAL_NORMAL_TEX_LOC, UT_INT);
 					GLCHECK(glBindVertexArray(unitCube->meshes[i].vao));
 					for (u32 n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
 						Material_SetUniform(m, "g_world", sizeof(Mat4X4), 
 							&decalWorlds[n], UT_MAT4);
 						Material_SetUniform(m, "g_decalInvWorld", sizeof(Mat4X4), 
 							&decalInvWorlds[n], UT_MAT4);
-						GLCHECK(glActiveTexture(GL_TEXTURE1));
-						GLCHECK(glBindTexture(GL_TEXTURE_2D, 
-							game.albedoTextures[DECAL_TEXTURE_INDICES[n]].handle));
-						GLCHECK(glActiveTexture(GL_TEXTURE2));
-						GLCHECK(glBindTexture(GL_TEXTURE_2D, 
-							game.normalTextures[DECAL_TEXTURE_INDICES[n]].handle));
-						GLCHECK(glDrawElements(GL_TRIANGLES, 
-							unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
+						Material_SetTexture(m, "g_albedo", 
+							&game.albedoTextures[DECAL_TEXTURE_INDICES[n]]);
+						Material_SetTexture(m, "g_normal", 
+							&game.normalTextures[DECAL_TEXTURE_INDICES[n]]);
+						GLCHECK(glDrawElements(GL_TRIANGLES,
+                            unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
 					}
 				}
 				// Reset state
@@ -1091,9 +1061,15 @@ void LoadMaterials(struct Game *game)
 {
 	const struct MaterialCreateInfo materialCreateInfos[] = {
 		{"shaders/vert.glsl", "shaders/frag.glsl", "Phong"},
-		{"shaders/vert.glsl", "shaders/deferred_decal.glsl", "Decal"},
-		{"shaders/vert.glsl", "shaders/gbuffer_frag.glsl", "GBuffer"},
-		{"shaders/deferred_vert.glsl", "shaders/deferred_frag.glsl", "Deferred"}
+		{"shaders/vert.glsl", "shaders/deferred_decal.glsl", "Decal",  
+			{"g_depth","g_albedo", "g_normal"}, 3
+		},
+		{"shaders/vert.glsl", "shaders/gbuffer_frag.glsl", "GBuffer",
+			{"g_albedoTex", "g_normalTex", "g_roughnessTex"}, 3
+		},
+		{"shaders/deferred_vert.glsl", "shaders/deferred_frag.glsl", "Deferred",
+			{"g_position", "g_normal", "g_albedo"}, 3
+		}
 	};
 
 	game->materials = malloc(sizeof(struct Material*) * ARRAY_COUNT(materialCreateInfos));

@@ -10,6 +10,7 @@ struct Material
 {
 	u32 programHandle;
     const i8 *name;
+    struct MaterialCreateInfo createInfo;
 };
 
 void DebugBreak(void)
@@ -159,11 +160,24 @@ static i32 LinkProgram(const u32 vs, const u32 fs,
 	return linkStatus;
 }
 
+static void CopyMaterialCreateInfo(struct MaterialCreateInfo *dest,
+    const struct MaterialCreateInfo *src)
+{
+    dest->fsPath = src->fsPath;
+    dest->vsPath = src->vsPath;
+    dest->name = src->name;
+    dest->numSamplers = src->numSamplers;
+    for (u32 i = 0; i < dest->numSamplers; ++i) {
+        dest->samplers[i] = src->samplers[i];
+    }
+}
+
 struct Material *Material_Create(const struct MaterialCreateInfo *info)
 {
     struct Material *m = malloc(sizeof *m);
     m->programHandle = CreateProgram(info->fsPath, info->vsPath, info->name);
     m->name = info->name;
+    CopyMaterialCreateInfo(&m->createInfo, info);
     return m;
 }
 
@@ -188,6 +202,20 @@ u32 Material_GetHandle(const struct Material *m)
 const i8 *Material_GetName(const struct Material *m)
 {
     return m->name;
+}
+
+void Material_SetTexture(struct Material *m, const i8 *name,
+    const struct Texture2D *t)
+{
+    for (u32 i = 0; i < m->createInfo.numSamplers; ++i) {
+        if (strcmp(m->createInfo.samplers[i], name) == 0) {
+            const i32 loc = (i32)i;
+            Material_SetUniform(m, name, sizeof(i32), &loc, UT_INT);
+            GLCHECK(glActiveTexture(GL_TEXTURE0 + loc));
+            GLCHECK(glBindTexture(GL_TEXTURE_2D, t->handle));
+            break;
+        }
+    }
 }
 
 void SetObjectName(enum ObjectIdentifier objectIdentifier, u32 name, const i8 *label)
