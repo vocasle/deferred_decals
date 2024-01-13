@@ -914,23 +914,24 @@ u32 CreateTexture2D(u32 width, u32 height, i32 internalFormat,
 		data = stbi_load(UtilsFormatStr("%s/%s", RES_HOME, imagePath), &w, &h,
 			&channelsInFile, STBI_rgb_alpha);
 		if (!data) {
-			UtilsDebugPrint("ERROR: Failed to load %s", imagePath);
-			exit(-1);
+			UtilsFatalError("FATAL ERROR: Failed to load %s", imagePath);
 		}
 		width = w;
 		height = h;
 	}
 
 	u32 handle = 0;
-	glGenTextures(1, &handle);
-	glBindTexture(GL_TEXTURE_2D, handle);
-	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, data);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	GLCHECK(glGenTextures(1, &handle));
+	GLCHECK(glBindTexture(GL_TEXTURE_2D, handle));
+	GLCHECK(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, 
+		width, height, 0, format, type, data));
+	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
 	if (genFB) {
-		glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, handle, 0);
+		GLCHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D,
+			handle, 0));
 	}
 	if (data) {
 		stbi_image_free(data);
@@ -948,22 +949,22 @@ void InitQuadPass(struct FullscreenQuadPass *fsqPass)
 		 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
 	};
 	// setup plane VAO
-	glGenVertexArrays(1, &fsqPass->vao);
-	glGenBuffers(1, &fsqPass->vbo);
-	glBindVertexArray(fsqPass->vao);
-	glBindBuffer(GL_ARRAY_BUFFER, fsqPass->vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0);
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32)));
+	GLCHECK(glGenVertexArrays(1, &fsqPass->vao));
+	GLCHECK(glGenBuffers(1, &fsqPass->vbo));
+	GLCHECK(glBindVertexArray(fsqPass->vao));
+	GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, fsqPass->vbo));
+	GLCHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW));
+	GLCHECK(glEnableVertexAttribArray(0));
+	GLCHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)0));
+	GLCHECK(glEnableVertexAttribArray(1));
+	GLCHECK(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32), (void*)(3 * sizeof(f32))));
 }
 
 void RenderQuad(const struct FullscreenQuadPass *fsqPass)
 {
-    glBindVertexArray(fsqPass->vao);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0);
+    GLCHECK(glBindVertexArray(fsqPass->vao));
+    GLCHECK(glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
+    GLCHECK(glBindVertexArray(0));
 }
 
 i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight)
