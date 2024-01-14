@@ -49,12 +49,12 @@ enum GBufferDebugMode {
 };
 
 struct GBuffer {
-	u32 position;
-	u32 normal;
-	u32 albedo;
+	struct Texture2D positionTex;
+	struct Texture2D normalTex;
+	struct Texture2D albedoTex;
+	struct Texture2D depthTex;
 	u32 framebuffer;
-	u32 depthBuffer;
-	u32 gbufferDepthTex;
+	u32 depthRenderBuffer;
 };
 
 struct FullscreenQuadPass {
@@ -311,24 +311,15 @@ i32 main(void)
 				glCullFace(GL_FRONT);
 				// Copy gbuffer depth
 				{
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.depthTex.handle));
 					GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,
 							game.framebufferSize.width, game.framebufferSize.height));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
 				}
-				// TODO: Set depth func to GL_LESS, set depth to read only
-				// TODO: Reconstruct world position from depth
-				// TODO: Need to copy depth buffer
+
 				for (u32 i = 0; i < unitCube->numMeshes; ++i) {
 					GLCHECK(glUseProgram(Material_GetHandle(m)));
-					// TODO: Replace with SetTexture 
-					// Material_SetTexture(m, "g_depth", 
-					// 	&game.gbuffer.gbufferDepthTex);
-					Material_SetUniform(m, "g_depth", sizeof(i32),
-						&C_DECAL_DEPTH_TEX_LOC, UT_INT);
-					GLCHECK(glActiveTexture(GL_TEXTURE0));
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.gbufferDepthTex));									
-
+					Material_SetTexture(m, "g_depth", &game.gbuffer.depthTex);
 					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(
 						&game.camera.view, &game.camera.proj);
 					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
@@ -382,23 +373,13 @@ i32 main(void)
 			struct Material *m = Game_FindMaterialByName(&game, "Deferred");
 			GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 			GLCHECK(glUseProgram(Material_GetHandle(m)));
-			GLCHECK(glActiveTexture(GL_TEXTURE0));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.position));
-			GLCHECK(glActiveTexture(GL_TEXTURE1));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.normal));
-			GLCHECK(glActiveTexture(GL_TEXTURE2));
-			GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.albedo));
+			Material_SetTexture(m, "g_position", &game.gbuffer.positionTex);
+			Material_SetTexture(m, "g_normal", &game.gbuffer.normalTex);
+			Material_SetTexture(m, "g_albedo", &game.gbuffer.albedoTex);
 			Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 			Material_SetUniform(m, "g_gbufferDebugMode", sizeof(i32),
 					&game.gbufferDebugMode, UT_INT);
-
-			const u32 g_position = 0;
-			const u32 g_normal = 1;
-			const u32 g_albedo = 2;
-			Material_SetUniform(m, "g_position", sizeof(u32), &g_position, UT_INT);
-			Material_SetUniform(m, "g_normal", sizeof(u32), &g_normal, UT_INT);
-			Material_SetUniform(m, "g_albedo", sizeof(u32), &g_albedo, UT_INT);
 			RenderQuad(&fsqPass);
 			PopRenderPassAnnotation();
 		}
@@ -730,37 +711,74 @@ i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight)
 	GLCHECK(glGenFramebuffers(1, &gbuffer->framebuffer));
     GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, gbuffer->framebuffer));
 
-    GLCHECK(glGenRenderbuffers(1, &gbuffer->depthBuffer));
-    GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, gbuffer->depthBuffer));
-    GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT,
-				fbWidth, fbHeight));
-    GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-				GL_RENDERBUFFER, gbuffer->depthBuffer));
-
-	gbuffer->position = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT,
-			GL_COLOR_ATTACHMENT0, GL_TRUE, NULL);
-	gbuffer->normal = CreateTexture2D(fbWidth, fbHeight, GL_RGBA16F, GL_RGBA, GL_FLOAT,
-		GL_COLOR_ATTACHMENT1, GL_TRUE, NULL);
-	gbuffer->albedo = CreateTexture2D(fbWidth, fbHeight, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE,
-		GL_COLOR_ATTACHMENT2, GL_TRUE, NULL);
-
+	{
+		const struct Texture2DCreateInfo info = {
+			.format = GL_DEPTH_COMPONENT,
+			.internalFormat = GL_DEPTH_COMPONENT,
+			.type = GL_UNSIGNED_BYTE,
+			.genFB = TRUE,
+			.framebufferAttachment = GL_DEPTH_ATTACHMENT,
+			.width = fbWidth,
+			.height = fbHeight,
+			.name = "GBuffer.Depth"
+		};
+		Texture2D_Init(&gbuffer->depthTex, &info);
+	}
+	{
+		const struct Texture2DCreateInfo info = {
+			.format = GL_RGBA,
+			.internalFormat = GL_RGBA16F,
+			.type = GL_UNSIGNED_BYTE,
+			.genFB = TRUE,
+			.framebufferAttachment = GL_COLOR_ATTACHMENT0,
+			.width = fbWidth,
+			.height = fbHeight,
+			.name = "GBuffer.Position"
+		};
+		Texture2D_Init(&gbuffer->positionTex, &info);
+	}
+	{
+		const struct Texture2DCreateInfo info = {
+			.format = GL_RGBA,
+			.internalFormat = GL_RGBA16F,
+			.type = GL_UNSIGNED_BYTE,
+			.genFB = TRUE,
+			.framebufferAttachment = GL_COLOR_ATTACHMENT1,
+			.width = fbWidth,
+			.height = fbHeight,
+			.name = "GBuffer.Normal"
+		};
+		Texture2D_Init(&gbuffer->normalTex, &info);
+	}
+	{
+		const struct Texture2DCreateInfo info = {
+			.format = GL_RGBA,
+			.internalFormat = GL_RGBA,
+			.type = GL_UNSIGNED_BYTE,
+			.genFB = TRUE,
+			.framebufferAttachment = GL_COLOR_ATTACHMENT2,
+			.width = fbWidth,
+			.height = fbHeight,
+			.name = "GBuffer.Albedo"
+		};
+		Texture2D_Init(&gbuffer->albedoTex, &info);
+	}
 	const u32 attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
 		GL_COLOR_ATTACHMENT2 };
 	GLCHECK(glDrawBuffers(ARRAY_COUNT(attachments), attachments));
+
+	GLCHECK(glGenRenderbuffers(1, &gbuffer->depthRenderBuffer));
+	GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, gbuffer->depthRenderBuffer));
+	GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT,
+				fbWidth, fbHeight));
+	GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+				GL_RENDERBUFFER, gbuffer->depthRenderBuffer));
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 		UtilsDebugPrint("ERROR: Failed to create GBuffer framebuffer");
 		return 0;
 	}
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	gbuffer->gbufferDepthTex = CreateTexture2D(fbWidth,
-			fbHeight, GL_DEPTH_COMPONENT,
-			GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0, 0, NULL);
-
-	SetObjectName(OI_TEXTURE, gbuffer->albedo, "GBuffer.Albedo");
-	SetObjectName(OI_TEXTURE, gbuffer->normal, "GBuffer.Normal");
-	SetObjectName(OI_TEXTURE, gbuffer->position, "GBuffer.Position");
 
 	return 1;
 }

@@ -1,5 +1,6 @@
 #include "renderer.h"
 #include <stdlib.h>
+#include <string.h>
 
 struct File {
 	i8 *contents;
@@ -54,6 +55,8 @@ static void SetUniform(u32 programHandle, const i8 *name, u32 size, const void *
         case UT_UINT:
 			GLCHECK(glUniform1ui(loc, *(const u32 *)data));
                 break;
+		default:
+			UtilsFatalError("FATAL ERROR: Failed to locate %s uniform");
         }
 }
 
@@ -287,4 +290,40 @@ void SetObjectName(enum ObjectIdentifier objectIdentifier, u32 name, const i8 *l
 
 	const i8 *fullLabel = UtilsFormatStr("%s_%s", label, prefix);
 	GLCHECK(glObjectLabel(identifier, name, strlen(fullLabel), fullLabel));
+}
+
+struct Texture2D *Texture2D_Create(const struct Texture2DCreateInfo *info)
+{
+	struct Texture2D *t = malloc(sizeof *t);
+	Texture2D_Init(t, info);
+	return t;
+}
+
+void Texture2D_Init(struct Texture2D *t, const struct Texture2DCreateInfo *info)
+{
+	u32 handle = 0;
+	GLCHECK(glGenTextures(1, &handle));
+	GLCHECK(glBindTexture(GL_TEXTURE_2D, handle));
+	GLCHECK(glTexImage2D(GL_TEXTURE_2D, 0, info->internalFormat, info->width,
+		info->height, 0, info->format, info->type, NULL));
+	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
+	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+	if (info->genFB) {
+		GLCHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, info->framebufferAttachment,
+			GL_TEXTURE_2D, handle, 0));
+	}
+	SetObjectName(OI_TEXTURE, handle, info->name);
+	t->handle = handle;
+	t->width = info->width;
+	t->height = info->height;
+	t->name = strdup(info->name);
+}
+
+void Texture2D_Destroy(struct Texture2D *t)
+{
+	free(t->name);
+	free(t);
+	t = NULL;
 }

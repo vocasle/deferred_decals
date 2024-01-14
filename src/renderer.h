@@ -56,6 +56,19 @@ enum ObjectIdentifier {
 	OI_FRAMEBUFFER,
 };
 
+/// Texture2D
+struct Texture2DCreateInfo
+{
+	i32 width;
+	i32 height;
+	i32 internalFormat;
+	i32 format;
+	i32 type;
+	const i8 *name;
+	boolean genFB;
+	i32 framebufferAttachment;
+};
+
 struct Texture2D {
 	i32 width;
 	i32 height;
@@ -63,6 +76,10 @@ struct Texture2D {
 	u32 handle;
 	i32 samplerLocation;
 };
+
+struct Texture2D *Texture2D_Create(const struct Texture2DCreateInfo *info);
+void Texture2D_Init(struct Texture2D *t, const struct Texture2DCreateInfo *info);
+void Texture2D_Destroy(struct Texture2D *t);
 
 /// Material
 #define MAX_SAMPLERS 16
