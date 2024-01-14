@@ -115,12 +115,6 @@ void InitNuklear(GLFWwindow *window);
 
 void DeinitNuklear(GLFWwindow* window);
 
-void LoadMaterials(struct Game *game);
-
-void LoadMeshes(struct Game *game);
-
-void LoadTextures(struct Game *game);
-
 void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
 	GLenum severity, GLsizei length, const GLchar* message, 
 	const void* userParam);
@@ -142,19 +136,16 @@ i32 main(void)
 
 	Mat4X4 decalWorlds[2] = { 0 };
 	Mat4X4 decalInvWorlds[2] = { 0 };
-	struct Transform decalTransforms[2] = { 0 };
-	{
-		const Vec3D scale = { 2.0f, 2.0f, 2.0f };
-		decalTransforms[0].scale = scale;
-		decalTransforms[1].scale = scale;
-		decalTransforms[1].translation.X = 2.0f;
-		decalTransforms[1].translation.Y = 5.0f;
-		decalTransforms[1].translation.Z = -9.0f;
-		// Always orient decal so that Y faces outward of surface that decal is applied to
-		decalTransforms[1].rotation.X = 90.0f;
-		UpdateDecalTransforms(decalWorlds, decalInvWorlds,
-			decalTransforms, ARRAY_COUNT(decalTransforms));
-	}
+	const struct Transform decalTransforms[] = {
+		{.scale = {2.0f, 2.0f, 2.0f}},
+		{
+			.scale = {2.0f, 2.0f, 2.0f},
+			.translation = {2.0f, 5.0f, -9.0f},
+			.rotation.X = 90.0f
+		}
+	};
+	UpdateDecalTransforms(decalWorlds, decalInvWorlds,
+		decalTransforms, ARRAY_COUNT(decalTransforms));
 
 	const Vec3D eyePos = { 4.633266f, 9.594514f, 6.876969f };
 	const f32 zNear = 0.1f;
