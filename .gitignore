@@ -58,3 +58,4 @@ compile_commands.json
 .cache/
 .vs/
 TAGS
+.vscode/
