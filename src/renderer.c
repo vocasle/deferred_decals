@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include <mikktspace.h>
+#include <stb_image.h>
 
 struct File {
 	i8 *contents;
@@ -519,9 +520,32 @@ struct ModelProxy *ModelProxy_Create(const i8 *path)
 {
 	return LoadModel(path);
 }
-void ModelProxy_Destroy(struct ModelProxy *m)
-{
-	// for (u32 i = 0; i < m->numMeshes; ++i) {
 
-	// }
+void Texture2D_Load(struct Texture2D *t, const i8 *texPath, i32 internalFormat,
+		i32 format, i32 type)
+{
+	i32 channelsInFile = 0;
+	u8 *data = stbi_load(UtilsFormatStr("%s/%s", RES_HOME, texPath), &t->width, &t->height,
+		&channelsInFile, STBI_rgb_alpha);
+	if (!data) {
+		UtilsDebugPrint("ERROR: Failed to load %s", texPath);
+		exit(-1);
+	}
+
+	const i32 loc = UtilsStrFindLastChar(texPath, '/');
+	t->name = strdup(texPath + loc + 1);
+
+	UtilsDebugPrint("Loaded %s: %dx%d, channels: %d", t->name, t->width, t->height,
+			channelsInFile);
+
+	glGenTextures(1, &t->handle);
+	glBindTexture(GL_TEXTURE_2D, t->handle);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, t->width, t->height, 0, format, type, data);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	SetObjectName(OI_TEXTURE, t->handle, t->name);
+	stbi_image_free(data);
 }

@@ -32,7 +32,6 @@ struct ModelProxy {
 };
 
 struct ModelProxy *ModelProxy_Create(const i8 *path);
-void ModelProxy_Destroy(struct ModelProxy *m);
 
 enum UniformType {
 	UT_MAT4,
@@ -85,6 +84,8 @@ struct Texture2D {
 
 struct Texture2D *Texture2D_Create(const struct Texture2DCreateInfo *info);
 void Texture2D_Init(struct Texture2D *t, const struct Texture2DCreateInfo *info);
+void Texture2D_Load(struct Texture2D *t, const i8 *texPath, i32 internalFormat,
+		i32 format, i32 type);
 void Texture2D_Destroy(struct Texture2D *t);
 
 /// Material

@@ -26,6 +26,10 @@ const char *UtilsGetStrAfterChar(const char *str, const char ch);
 
 unsigned char* UtilsReadData(const char* filepath, unsigned int* bufferSize);
 
+#define ARRAY_COUNT(x) (u32)(sizeof(x) / sizeof(x[0]))
+
+#define ZERO_MEMORY(ptr) memset(ptr, 0, sizeof *(ptr))
+
 /* Dynamic Array */
 
 #define DEFINE_ARRAY_TYPE(DataType, ClassSuffix) \

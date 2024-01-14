@@ -1,9 +1,6 @@
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
-#include <string.h>
-#include <stdlib.h>
-#include <signal.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
@@ -28,7 +25,7 @@
 #define MAX_VERTEX_BUFFER 512 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
 
-#if _WIN32
+#if _WIN32 // Force descrete GPU on Windows
 	__declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
 	__declspec(dllexport) i32 AmdPowerXpressRequestHighPerformance = 1;
 #endif
@@ -87,23 +84,20 @@ struct Game {
 	u32 numMaterials;
 	struct ModelProxy **models;
 	u32 numModels;
+	GLFWwindow *window;
 };
+
+struct Game *Game_Create();
 
 void OnFramebufferResize(GLFWwindow *window, i32 width, i32 height);
 
 f64 GetDeltaTime();
-
-u32 CreateTexture2D(u32 width, u32 height, i32 internalFormat,
-		i32 format, i32 type, i32 attachment, i32 genFB, const i8 *imagePath);
 
 void RenderQuad(const struct FullscreenQuadPass *fsqPass);
 
 void InitQuadPass(struct FullscreenQuadPass *fsqPass);
 
 void ProcessInput(GLFWwindow* window);
-
-void Texture2D_Load(struct Texture2D *t, const i8 *texPath, i32 internalFormat,
-		i32 format, i32 type);
 
 void Camera_Init(struct Camera *camera, const Vec3D *position,
 		f32 fov, f32 aspectRatio, f32 zNear, f32 zFar);
@@ -127,36 +121,17 @@ void LoadMeshes(struct Game *game);
 
 void LoadTextures(struct Game *game);
 
-#define ARRAY_COUNT(x) (u32)(sizeof(x) / sizeof(x[0]))
-
-void GLAPIENTRY
-MessageCallback(GLenum source,
-                GLenum type,
-                GLuint id,
-                GLenum severity,
-                GLsizei length,
-                const GLchar* message,
-                const void* userParam);
+void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
+	GLenum severity, GLsizei length, const GLchar* message, 
+	const void* userParam);
 
 i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight);
-
-GLFWwindow *InitGLFW(i32 width, i32 height, const i8 *title);
 
 struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name);
 
 i32 main(void)
 {
-    GLFWwindow* window = InitGLFW(640, 480, "Deferred Decals");
-
-	struct Game game = { 0 };
-	glfwGetFramebufferSize(window, &game.framebufferSize.width,
-			&game.framebufferSize.height);
-	glfwSetWindowUserPointer(window, &game);
-    glfwSetFramebufferSizeCallback(window, OnFramebufferResize);
-
-	LoadMaterials(&game);
-	LoadMeshes(&game);
-	LoadTextures(&game);
+    struct Game *game = Game_Create();
 
 	glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
@@ -169,29 +144,29 @@ i32 main(void)
 	Mat4X4 decalInvWorlds[2] = { 0 };
 	struct Transform decalTransforms[2] = { 0 };
 	{
-	  const Vec3D scale = { 2.0f, 2.0f, 2.0f };
-	  decalTransforms[0].scale = scale;
-	  decalTransforms[1].scale = scale;
-	  decalTransforms[1].translation.X = 2.0f;
-	  decalTransforms[1].translation.Y = 5.0f;
-	  decalTransforms[1].translation.Z = -9.0f;
-	  // Always orient decal so that Y faces outward of surface that decal is applied to
-	  decalTransforms[1].rotation.X = 90.0f;
-	  UpdateDecalTransforms(decalWorlds, decalInvWorlds,
-				decalTransforms, ARRAY_COUNT(decalTransforms));
+		const Vec3D scale = { 2.0f, 2.0f, 2.0f };
+		decalTransforms[0].scale = scale;
+		decalTransforms[1].scale = scale;
+		decalTransforms[1].translation.X = 2.0f;
+		decalTransforms[1].translation.Y = 5.0f;
+		decalTransforms[1].translation.Z = -9.0f;
+		// Always orient decal so that Y faces outward of surface that decal is applied to
+		decalTransforms[1].rotation.X = 90.0f;
+		UpdateDecalTransforms(decalWorlds, decalInvWorlds,
+			decalTransforms, ARRAY_COUNT(decalTransforms));
 	}
 
 	const Vec3D eyePos = { 4.633266f, 9.594514f, 6.876969f };
 	const f32 zNear = 0.1f;
 	const f32 zFar = 1000.0f;
 
-	Camera_Init(&game.camera, &eyePos, MathToRadians(90.0f),
-			(f32)game.framebufferSize.width / (f32)game.framebufferSize.height,
+	Camera_Init(&game->camera, &eyePos, MathToRadians(90.0f),
+			(f32)game->framebufferSize.width / (f32)game->framebufferSize.height,
 			zNear, zFar);
 
 	const Vec3D g_lightPos = { 0.0, 10.0, 0.0 };
 
-	InitGBuffer(&game.gbuffer, game.framebufferSize.width, game.framebufferSize.height);
+	InitGBuffer(&game->gbuffer, game->framebufferSize.width, game->framebufferSize.height);
 
 	struct FullscreenQuadPass fsqPass = { 0 };
 	InitQuadPass(&fsqPass);
@@ -202,40 +177,40 @@ i32 main(void)
 	const i32 C_DEFAULT_TEX_IDX = 3;
 	const i32 DECAL_TEXTURE_INDICES[2] = { C_WOOD_TEX_IDX, C_BRICKS_TEX_IDX };
 
-#if _WIN32
-	glfwMaximizeWindow(window);
+#if _WIN32 // On Windows GLFW window won't start maximazed. We force it.
+	glfwMaximizeWindow(game->window);
 #endif
 
-	InitNuklear(window);
+	InitNuklear(game->window);
 
     /* Loop until the user closes the window */
-    while(!glfwWindowShouldClose(window))
+    while(!glfwWindowShouldClose(game->window))
     {
-		nk_glfw3_new_frame(&game.nuklear);
-		ProcessInput(window);
-		Game_Update(&game);
+		nk_glfw3_new_frame(&game->nuklear);
+		ProcessInput(game->window);
+		Game_Update(game);
 		// GBuffer Pass
 		{
 			PushRenderPassAnnotation("GBuffer Pass");
 			{
 				PushRenderPassAnnotation("Geometry Pass");
-				struct Material *m = Game_FindMaterialByName(&game, "GBuffer");
-				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, game.gbuffer.framebuffer));
+				struct Material *m = Game_FindMaterialByName(game, "GBuffer");
+				GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, game->gbuffer.framebuffer));
 				GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 				GLCHECK(glUseProgram(Material_GetHandle(m)));
 
-				Material_SetUniform(m, "g_view", sizeof(Mat4X4), &game.camera.view,
+				Material_SetUniform(m, "g_view", sizeof(Mat4X4), &game->camera.view,
 					UT_MAT4);
-				Material_SetUniform(m, "g_proj", sizeof(Mat4X4), &game.camera.proj,
+				Material_SetUniform(m, "g_proj", sizeof(Mat4X4), &game->camera.proj,
 					UT_MAT4);
 				Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 				Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
-				const struct ModelProxy *room = game.models[0];
+				const struct ModelProxy *room = game->models[0];
 				for (u32 i = 0; i < room->numMeshes; ++i) {
-					Material_SetTexture(m, "g_albedoTex", &game.albedoTextures[C_DEFAULT_TEX_IDX]);
-					Material_SetTexture(m, "g_normalTex", &game.normalTextures[C_DEFAULT_TEX_IDX]);
+					Material_SetTexture(m, "g_albedoTex", &game->albedoTextures[C_DEFAULT_TEX_IDX]);
+					Material_SetTexture(m, "g_normalTex", &game->normalTextures[C_DEFAULT_TEX_IDX]);
 					Material_SetTexture(m, "g_roughnessTex", 
-						&game.roughnessTextures[C_DEFAULT_TEX_IDX]);
+						&game->roughnessTextures[C_DEFAULT_TEX_IDX]);
 
 					GLCHECK(glBindVertexArray(room->meshes[i].vao));
 					Material_SetUniform(m, "g_world", sizeof(Mat4X4), 
@@ -249,37 +224,37 @@ i32 main(void)
 			// Decal pass
 			{
 				PushRenderPassAnnotation("Decal Pass");
-				struct Material *m = Game_FindMaterialByName(&game, "Decal");
+				struct Material *m = Game_FindMaterialByName(game, "Decal");
 				// Set read only depth
 				glDepthFunc(GL_GREATER);
 				glDepthMask(GL_FALSE);
 				glCullFace(GL_FRONT);
 				// Copy gbuffer depth
 				{
-					GLCHECK(glBindTexture(GL_TEXTURE_2D, game.gbuffer.depthTex.handle));
+					GLCHECK(glBindTexture(GL_TEXTURE_2D, game->gbuffer.depthTex.handle));
 					GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,
-							game.framebufferSize.width, game.framebufferSize.height));
+							game->framebufferSize.width, game->framebufferSize.height));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
 				}
-				const struct ModelProxy *unitCube = game.models[1];
+				const struct ModelProxy *unitCube = game->models[1];
 				for (u32 i = 0; i < unitCube->numMeshes; ++i) {
 					GLCHECK(glUseProgram(Material_GetHandle(m)));
-					Material_SetTexture(m, "g_depth", &game.gbuffer.depthTex);
+					Material_SetTexture(m, "g_depth", &game->gbuffer.depthTex);
 					const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(
-						&game.camera.view, &game.camera.proj);
+						&game->camera.view, &game->camera.proj);
 					const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
 
-					const Vec4D rtSize = { game.framebufferSize.width, 
-						game.framebufferSize.height,
-						1.0f / game.framebufferSize.width, 
-						1.0f / game.framebufferSize.height };
+					const Vec4D rtSize = { game->framebufferSize.width, 
+						game->framebufferSize.height,
+						1.0f / game->framebufferSize.width, 
+						1.0f / game->framebufferSize.height };
 
 					Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos,
 						UT_VEC3F);
 					Material_SetUniform(m, "g_rtSize", sizeof(Vec4D), &rtSize, UT_VEC4F);
-					Material_SetUniform(m, "g_view", sizeof(Mat4X4), &game.camera.view,
+					Material_SetUniform(m, "g_view", sizeof(Mat4X4), &game->camera.view,
 						UT_MAT4);
-					Material_SetUniform(m, "g_proj", sizeof(Mat4X4), &game.camera.proj, 
+					Material_SetUniform(m, "g_proj", sizeof(Mat4X4), &game->camera.proj, 
 						UT_MAT4);
 					Material_SetUniform(m, "g_invViewProj", sizeof(Mat4X4), &invViewProj, 
 						UT_MAT4);
@@ -294,9 +269,9 @@ i32 main(void)
 						Material_SetUniform(m, "g_decalInvWorld", sizeof(Mat4X4), 
 							&decalInvWorlds[n], UT_MAT4);
 						Material_SetTexture(m, "g_albedo", 
-							&game.albedoTextures[DECAL_TEXTURE_INDICES[n]]);
+							&game->albedoTextures[DECAL_TEXTURE_INDICES[n]]);
 						Material_SetTexture(m, "g_normal", 
-							&game.normalTextures[DECAL_TEXTURE_INDICES[n]]);
+							&game->normalTextures[DECAL_TEXTURE_INDICES[n]]);
 						GLCHECK(glDrawElements(GL_TRIANGLES,
                             unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
 					}
@@ -315,16 +290,16 @@ i32 main(void)
 		// Deferred Shading Pass
 		{
 			PushRenderPassAnnotation("Deferred Shading Pass");
-			struct Material *m = Game_FindMaterialByName(&game, "Deferred");
+			struct Material *m = Game_FindMaterialByName(game, "Deferred");
 			GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 			GLCHECK(glUseProgram(Material_GetHandle(m)));
-			Material_SetTexture(m, "g_position", &game.gbuffer.positionTex);
-			Material_SetTexture(m, "g_normal", &game.gbuffer.normalTex);
-			Material_SetTexture(m, "g_albedo", &game.gbuffer.albedoTex);
+			Material_SetTexture(m, "g_position", &game->gbuffer.positionTex);
+			Material_SetTexture(m, "g_normal", &game->gbuffer.normalTex);
+			Material_SetTexture(m, "g_albedo", &game->gbuffer.albedoTex);
 			Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 			Material_SetUniform(m, "g_gbufferDebugMode", sizeof(i32),
-					&game.gbufferDebugMode, UT_INT);
+					&game->gbufferDebugMode, UT_INT);
 			RenderQuad(&fsqPass);
 			PopRenderPassAnnotation();
 		}
@@ -332,13 +307,13 @@ i32 main(void)
 		// Copy gbuffer depth to default framebuffer's depth
 		{
 			PushRenderPassAnnotation("Copy GBuffer Depth Pass");
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, game.gbuffer.framebuffer);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, game->gbuffer.framebuffer);
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0); // write to default framebuffer
         // blit to default framebuffer. Note that this may or may not work as the internal formats of both the FBO and default framebuffer have to match.
         // the internal formats are implementation defined. This works on all of my systems, but if it doesn't on yours you'll likely have to write to the
         // depth buffer in another shader stage (or somehow see to match the default framebuffer's internal format with the FBO's internal format).
-			glBlitFramebuffer(0, 0, game.framebufferSize.width, game.framebufferSize.height,
-					0, 0, game.framebufferSize.width, game.framebufferSize.height,
+			glBlitFramebuffer(0, 0, game->framebufferSize.width, game->framebufferSize.height,
+					0, 0, game->framebufferSize.width, game->framebufferSize.height,
 					GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			PopRenderPassAnnotation();
@@ -347,17 +322,17 @@ i32 main(void)
 		// Wireframe pass
 		{
 			PushRenderPassAnnotation("Wireframe Pass");
-			struct Material *m = Game_FindMaterialByName(&game, "Phong");
+			struct Material *m = Game_FindMaterialByName(game, "Phong");
 			glUseProgram(Material_GetHandle(m));
-			Material_SetUniform(m, "g_view", sizeof(Mat4X4), &game.camera.view, UT_MAT4);
-			Material_SetUniform(m, "g_proj", sizeof(Mat4X4), &game.camera.proj, UT_MAT4);
+			Material_SetUniform(m, "g_view", sizeof(Mat4X4), &game->camera.view, UT_MAT4);
+			Material_SetUniform(m, "g_proj", sizeof(Mat4X4), &game->camera.proj, UT_MAT4);
 			Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 			Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
 			static const i32 isWireframe = 1;
 			Material_SetUniform(m, "g_wireframe", sizeof(i32), &isWireframe, UT_INT);
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			const struct ModelProxy *unitCube = game.models[1];
+			const struct ModelProxy *unitCube = game->models[1];
 			for (u32 i = 0; i < unitCube->numMeshes; ++i) {
 				glBindVertexArray(unitCube->meshes[i].vao);
 				for (u32 n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
@@ -374,7 +349,7 @@ i32 main(void)
 		// GUI Pass
 		{
 			PushRenderPassAnnotation("Nuklear Pass");
-			struct nk_context* ctx = &game.nuklear.ctx;
+			struct nk_context* ctx = &game->nuklear.ctx;
 			if (nk_begin(ctx, "Options", nk_rect(50, 50, 530, 250),
 				NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE |
 				NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
@@ -404,7 +379,7 @@ i32 main(void)
 			}
 			nk_end(ctx);
 
-			nk_glfw3_render(&game.nuklear, NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+			nk_glfw3_render(&game->nuklear, NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
 			glDisable(GL_BLEND);
 			glEnable(GL_CULL_FACE);
 			glEnable(GL_DEPTH_TEST);
@@ -413,13 +388,13 @@ i32 main(void)
 		}
 
         /* Swap front and back buffers */
-        glfwSwapBuffers(window);
+        glfwSwapBuffers(game->window);
 
         /* Poll for and process events */
         glfwPollEvents();
     }
 
-	DeinitNuklear(window);
+	DeinitNuklear(game->window);
     glfwTerminate();
     return 0;
 }
@@ -442,43 +417,6 @@ f64 GetDeltaTime()
 	const f64 dt = now - prevTime;
 	prevTime = now;
 	return dt;
-}
-
-u32 CreateTexture2D(u32 width, u32 height, i32 internalFormat,
-		i32 format, i32 type, i32 attachment, i32 genFB, const i8 *imagePath)
-{
-	u8 *data = NULL;
-	if (imagePath)
-	{
-		i32 w = 0;
-		i32 h = 0;
-		i32 channelsInFile = 0;
-		data = stbi_load(UtilsFormatStr("%s/%s", RES_HOME, imagePath), &w, &h,
-			&channelsInFile, STBI_rgb_alpha);
-		if (!data) {
-			UtilsFatalError("FATAL ERROR: Failed to load %s", imagePath);
-		}
-		width = w;
-		height = h;
-	}
-
-	u32 handle = 0;
-	GLCHECK(glGenTextures(1, &handle));
-	GLCHECK(glBindTexture(GL_TEXTURE_2D, handle));
-	GLCHECK(glTexImage2D(GL_TEXTURE_2D, 0, internalFormat,
-		width, height, 0, format, type, data));
-	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
-	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
-	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-	GLCHECK(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-	if (genFB) {
-		GLCHECK(glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D,
-			handle, 0));
-	}
-	if (data) {
-		stbi_image_free(data);
-	}
-	return handle;
 }
 
 void InitQuadPass(struct FullscreenQuadPass *fsqPass)
@@ -672,35 +610,6 @@ void ProcessInput(GLFWwindow* window)
 		const Vec3D up = { .Y = 1.0f };
 		game->camera.right = MathVec3DCross(&up, &game->camera.front);
 	}
-}
-
-void Texture2D_Load(struct Texture2D *t, const i8 *texPath, i32 internalFormat,
-		i32 format, i32 type)
-{
-	i32 channelsInFile = 0;
-	u8 *data = stbi_load(UtilsFormatStr("%s/%s", RES_HOME, texPath), &t->width, &t->height,
-		&channelsInFile, STBI_rgb_alpha);
-	if (!data) {
-		UtilsDebugPrint("ERROR: Failed to load %s", texPath);
-		exit(-1);
-	}
-
-	const i32 loc = UtilsStrFindLastChar(texPath, '/');
-	t->name = strdup(texPath + loc + 1);
-
-	UtilsDebugPrint("Loaded %s: %dx%d, channels: %d", t->name, t->width, t->height,
-			channelsInFile);
-
-	glGenTextures(1, &t->handle);
-	glBindTexture(GL_TEXTURE_2D, t->handle);
-	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, t->width, t->height, 0, format, type, data);
-	glGenerateMipmap(GL_TEXTURE_2D);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	SetObjectName(OI_TEXTURE, t->handle, t->name);
-	stbi_image_free(data);
 }
 
 void Camera_Init(struct Camera *camera, const Vec3D *position,
@@ -926,4 +835,22 @@ stbi_set_flip_vertically_on_load(1);
 		Texture2D_Load(game->normalTextures + i, normalTexturesPaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
 		Texture2D_Load(game->roughnessTextures + i, roughnessTexturePaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
 	}
+}
+
+struct Game *Game_Create(void)
+{
+	GLFWwindow* window = InitGLFW(640, 480, "Deferred Decals");
+	struct Game *game = malloc(sizeof *game);
+	ZERO_MEMORY(game);
+	game->window = window;
+	glfwGetFramebufferSize(window, &game->framebufferSize.width,
+			&game->framebufferSize.height);
+	glfwSetWindowUserPointer(window, game);
+    glfwSetFramebufferSizeCallback(window, OnFramebufferResize);
+
+	LoadMaterials(game);
+	LoadMeshes(game);
+	LoadTextures(game);
+
+	return game;
 }
