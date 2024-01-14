@@ -21,12 +21,18 @@ struct MeshProxy {
 	u32 ebo;
 	u32 numIndices;
 	Mat4X4 world;
+	struct Texture2D *albedo;
+	struct Texture2D *normal;
+	struct Texture2D *specular;
 };
 
 struct ModelProxy {
 	struct MeshProxy *meshes;
 	u32 numMeshes;
 };
+
+struct ModelProxy *ModelProxy_Create(const i8 *path);
+void ModelProxy_Destroy(struct ModelProxy *m);
 
 enum UniformType {
 	UT_MAT4,

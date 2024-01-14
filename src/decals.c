@@ -6,10 +6,8 @@
 #include <signal.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-#include <mikktspace.h>
 
 #include "myutils.h"
-#include "objloader.h"
 #include "mymath.h"
 #include "defines.h"
 #include "renderer.h"
@@ -87,12 +85,11 @@ struct Game {
 	struct nk_glfw nuklear;
 	struct Material **materials;
 	u32 numMaterials;
+	struct ModelProxy **models;
+	u32 numModels;
 };
 
 void OnFramebufferResize(GLFWwindow *window, i32 width, i32 height);
-
-struct ModelProxy *LoadModel(const i8 *filename);
-struct ModelProxy *CreateModelProxy(const struct Model *m);
 
 f64 GetDeltaTime();
 
@@ -102,14 +99,6 @@ u32 CreateTexture2D(u32 width, u32 height, i32 internalFormat,
 void RenderQuad(const struct FullscreenQuadPass *fsqPass);
 
 void InitQuadPass(struct FullscreenQuadPass *fsqPass);
-
-struct CalculateTangetData {
-	struct Vertex *vertices;
-	u32 numVertices;
-	const u32 *indices;
-	u32 numIndices;
-};
-void CalculateTangentArray(struct CalculateTangetData *data);
 
 void ProcessInput(GLFWwindow* window);
 
@@ -133,6 +122,10 @@ void InitNuklear(GLFWwindow *window);
 void DeinitNuklear(GLFWwindow* window);
 
 void LoadMaterials(struct Game *game);
+
+void LoadMeshes(struct Game *game);
+
+void LoadTextures(struct Game *game);
 
 #define ARRAY_COUNT(x) (u32)(sizeof(x) / sizeof(x[0]))
 
@@ -161,15 +154,9 @@ i32 main(void)
 	glfwSetWindowUserPointer(window, &game);
     glfwSetFramebufferSizeCallback(window, OnFramebufferResize);
 
-    struct ModelProxy *room = LoadModel("assets/room.obj");
-	{
-		Mat4X4 rotate90 = MathMat4X4RotateY(MathToRadians(-90.0f));
-		for (u32 i = 0; i < room->numMeshes; ++i) {
-			room->meshes[i].world = rotate90;
-		}
-	}
-
 	LoadMaterials(&game);
+	LoadMeshes(&game);
+	LoadTextures(&game);
 
 	glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
@@ -178,7 +165,6 @@ i32 main(void)
 	glEnable(GL_DEBUG_OUTPUT);
 	glDebugMessageCallback(MessageCallback, 0);
 
-	struct ModelProxy *unitCube = LoadModel("assets/unit_cube.obj");
 	Mat4X4 decalWorlds[2] = { 0 };
 	Mat4X4 decalInvWorlds[2] = { 0 };
 	struct Transform decalTransforms[2] = { 0 };
@@ -209,51 +195,11 @@ i32 main(void)
 
 	struct FullscreenQuadPass fsqPass = { 0 };
 	InitQuadPass(&fsqPass);
-	stbi_set_flip_vertically_on_load(1);
-	const i8 *albedoTexturePaths[] = {
-		"assets/older-wood-flooring-bl/older-wood-flooring_albedo.png",
-		"assets/rusty-metal-bl/rusty-metal_albedo.png",
-		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_COL_1K_SPECULAR.png"
-	};
 
-	const i8 *normalTexturesPaths[] = {
-		"assets/older-wood-flooring-bl/older-wood-flooring_normal-ogl.png",
-		"assets/rusty-metal-bl/rusty-metal_normal-ogl.png",
-		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_NRM_1K_SPECULAR.png"
-	};
-
-	const i8 *roughnessTexturePaths[] = {
-		"assets/older-wood-flooring-bl/older-wood-flooring_roughness.png",
-		"assets/rusty-metal-bl/rusty-metal_roughness.png",
-		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_GLOSS_1K_SPECULAR.png"
-	};
-
-	game.numTextures = ARRAY_COUNT(albedoTexturePaths);
-	game.albedoTextures = malloc(sizeof *game.albedoTextures * game.numTextures);
-	memset(game.albedoTextures, 0, sizeof *game.albedoTextures * game.numTextures);
-	game.roughnessTextures = malloc(sizeof *game.roughnessTextures * game.numTextures);
-	memset(game.roughnessTextures, 0, sizeof *game.roughnessTextures * game.numTextures);
-	game.normalTextures = malloc(sizeof *game.normalTextures * game.numTextures);
-	memset(game.normalTextures, 0, sizeof *game.normalTextures * game.numTextures);
-
-	for (u32 i = 0; i < ARRAY_COUNT(albedoTexturePaths); ++i) {
-		Texture2D_Load(game.albedoTextures + i, albedoTexturePaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-		Texture2D_Load(game.normalTextures + i, normalTexturesPaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-		Texture2D_Load(game.roughnessTextures + i, roughnessTexturePaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-	}
-
-	const i32 C_ALBEDO_TEX_LOC = 0;
-	const i32 C_NORMAL_TEX_LOC = 1;
-	const i32 C_ROUGHNESS_TEX_LOC = 2;
-	const i32 C_DECAL_DEPTH_TEX_LOC = 0;
-	const i32 C_DECAL_ALBEDO_TEX_LOC = 1;
-	const i32 C_DECAL_NORMAL_TEX_LOC = 2;
-	const u32 C_DECAL_TBN_TANGENT_TEX_LOC = 3;
-	const u32 C_DECAL_TBN_BITANGENT_TEX_LOC = 4;
-	const u32 C_DECAL_TBN_NORMAL_TEX_LOC = 5;
 	const i32 C_WOOD_TEX_IDX = 0;
 	const i32 C_RUSTY_METAL_TEX_IDX = 1;
 	const i32 C_BRICKS_TEX_IDX = 2;
+	const i32 C_DEFAULT_TEX_IDX = 3;
 	const i32 DECAL_TEXTURE_INDICES[2] = { C_WOOD_TEX_IDX, C_BRICKS_TEX_IDX };
 
 #if _WIN32
@@ -261,7 +207,6 @@ i32 main(void)
 #endif
 
 	InitNuklear(window);
-	struct nk_colorf bg = { 0.10f, 0.18f, 0.24f, 1.0f };
 
     /* Loop until the user closes the window */
     while(!glfwWindowShouldClose(window))
@@ -285,12 +230,12 @@ i32 main(void)
 					UT_MAT4);
 				Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos, UT_VEC3F);
 				Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos, UT_VEC3F);
-
+				const struct ModelProxy *room = game.models[0];
 				for (u32 i = 0; i < room->numMeshes; ++i) {
-					Material_SetTexture(m, "g_albedoTex", &game.albedoTextures[C_RUSTY_METAL_TEX_IDX]);
-					Material_SetTexture(m, "g_normalTex", &game.normalTextures[C_RUSTY_METAL_TEX_IDX]);
+					Material_SetTexture(m, "g_albedoTex", &game.albedoTextures[C_DEFAULT_TEX_IDX]);
+					Material_SetTexture(m, "g_normalTex", &game.normalTextures[C_DEFAULT_TEX_IDX]);
 					Material_SetTexture(m, "g_roughnessTex", 
-						&game.roughnessTextures[C_RUSTY_METAL_TEX_IDX]);
+						&game.roughnessTextures[C_DEFAULT_TEX_IDX]);
 
 					GLCHECK(glBindVertexArray(room->meshes[i].vao));
 					Material_SetUniform(m, "g_world", sizeof(Mat4X4), 
@@ -316,7 +261,7 @@ i32 main(void)
 							game.framebufferSize.width, game.framebufferSize.height));
 					GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
 				}
-
+				const struct ModelProxy *unitCube = game.models[1];
 				for (u32 i = 0; i < unitCube->numMeshes; ++i) {
 					GLCHECK(glUseProgram(Material_GetHandle(m)));
 					Material_SetTexture(m, "g_depth", &game.gbuffer.depthTex);
@@ -412,6 +357,7 @@ i32 main(void)
 			Material_SetUniform(m, "g_wireframe", sizeof(i32), &isWireframe, UT_INT);
 
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			const struct ModelProxy *unitCube = game.models[1];
 			for (u32 i = 0; i < unitCube->numMeshes; ++i) {
 				glBindVertexArray(unitCube->meshes[i].vao);
 				for (u32 n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
@@ -487,149 +433,6 @@ void OnFramebufferResize(GLFWwindow *window, i32 width,
 	game->framebufferSize.width = width;
 	game->framebufferSize.height = height;
 	InitGBuffer(&game->gbuffer, width, height);
-}
-
-struct ModelProxy *LoadModel(const i8 *filename)
-{
-	const i8 *absPath = UtilsFormatStr("%s/%s", RES_HOME, filename);
-	struct Model* model = OLLoad(absPath);
-	struct ModelProxy *proxy = NULL;
-    if (model) {
-	    for (u32 i = 0; i < model->NumMeshes; ++i) {
-		    const struct Mesh *mesh = model->Meshes + i;
-		    UtilsDebugPrint("Mesh %s, faces: %u, normals: %u, positions: %u, texCoords: %u",
-					mesh->Name, mesh->NumFaces,
-				    mesh->NumNormals, mesh->NumPositions,
-				    mesh->NumTexCoords);
-	    }
-
-		proxy = CreateModelProxy(model);
-		ModelFree(model);
-    }
-	return proxy;
-}
-
-void PrintModelToFile(const struct Model *m)
-{
-	if (!m) {
-		return;
-	}
-
-	FILE *out = fopen("model.txt", "w");
-	for (u32 i = 0; i < m->NumMeshes; ++i) {
-		fprintf(out, "%s\n", m->Meshes[i].Name);
-		fprintf(out, "Num positions: %d, num indices: %d\n", m->Meshes[i].NumPositions,
-				m->Meshes[i].NumFaces);
-		for (u32 j = 0; j < m->Meshes[i].NumFaces; j += 3) {
-			fprintf(out, "%d %d %d\n", m->Meshes[i].Faces[j].posIdx,
-					m->Meshes[i].Faces[j + 1].posIdx,
-					m->Meshes[i].Faces[j + 2].posIdx);
-		}
-		for (u32 j = 0; j < m->Meshes[i].NumPositions; ++j) {
-			fprintf(out, "%f %f %f\n", m->Meshes[i].Positions[j].x,
-				m->Meshes[i].Positions[j].y,
-				m->Meshes[i].Positions[j].z);
-		}
-		fprintf(out, "\n\n");
-	}
-	fclose(out);
-}
-
-void ValidateModelProxy(const struct ModelProxy *m)
-{
-	UtilsDebugPrint("Validating ModelProxy. Num meshes: %d", m->numMeshes);
-	for (u32 i = 0; i < m->numMeshes; ++i) {
-		UtilsDebugPrint("Mesh %d, Num indices: %d", i, m->meshes[i].numIndices);
-	}
-}
-
-struct ModelProxy *CreateModelProxy(const struct Model *m)
-{
-	if (!m || m->NumMeshes == 0) {
-		return NULL;
-	}
-
-//	PrintModelToFile(m);
-	const Mat4X4 world = MathMat4X4Identity();
-
-	struct ModelProxy *ret = malloc(sizeof *ret);
-	ret->meshes = malloc(sizeof(struct MeshProxy) * m->NumMeshes);
-	ret->numMeshes = m->NumMeshes;
-	// indices in *.obj are increased from 1 to N
-	// and they do not reset to 0 when next mesh starts
-	// say we have two cubes and first cube's last indices are
-	// 4 0 1
-	// then follows next cube and it's indices start from 8 and not from 1
-	// 12 10 8
-	// thus we add indexOffset and subtract it from index from *.obj
-	u32 posIdxOffset = 0;
-	u32 normIdxOffset = 0;
-	u32 texIdxOffset = 0;
-	for (u32 i = 0; i < m->NumMeshes; ++i) {
-	    GLCHECK(glGenVertexArrays(1, &ret->meshes[i].vao));
-	    GLCHECK(glGenBuffers(1, &ret->meshes[i].vbo));
-	    GLCHECK(glGenBuffers(1, &ret->meshes[i].ebo));
-
-		u32 *indices = malloc(sizeof *indices * m->Meshes[i].NumFaces);
-		struct Vertex *vertices = malloc(sizeof *vertices * m->Meshes[i].NumFaces);
-		for (u32 j = 0; j < m->Meshes[i].NumFaces; ++j) {
-			const u32 posIdx = m->Meshes[i].Faces[j].posIdx - posIdxOffset;
-			const u32 normIdx = m->Meshes[i].Faces[j].normIdx - normIdxOffset;
-			const u32 texIdx = m->Meshes[i].Faces[j].texIdx - texIdxOffset;
-			assert(posIdx < m->Meshes[i].NumPositions);
-			assert(normIdx < m->Meshes[i].NumNormals);
-			assert(texIdx < m->Meshes[i].NumTexCoords);
-			vertices[j].position = *(Vec3D*)&m->Meshes[i].Positions[posIdx];
-			vertices[j].normal = *(Vec3D*)&m->Meshes[i].Normals[normIdx];
-			vertices[j].texCoords = *(Vec2D*)&m->Meshes[i].TexCoords[texIdx];
-			vertices[j].tangent = MathVec4DZero();
-			indices[j] = j;
-		}
-		posIdxOffset += m->Meshes[i].NumPositions;
-		normIdxOffset += m->Meshes[i].NumNormals;
-		texIdxOffset += m->Meshes[i].NumTexCoords;
-
-		struct CalculateTangetData data = { vertices, m->Meshes[i].NumFaces, indices, m->Meshes[i].NumFaces }	;
-		CalculateTangentArray(&data);
-
-	    GLCHECK(glBindVertexArray(ret->meshes[i].vao));
-		SetObjectName(OI_VERTEX_ARRAY, ret->meshes[i].vao, m->Meshes[i].Name);
-	    GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, ret->meshes[i].vbo));
-	    GLCHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(struct Vertex) * m->Meshes[i].NumFaces,
-			    vertices, GL_STATIC_DRAW));
-		free(vertices);
-
-
-	    GLCHECK(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ret->meshes[i].ebo));
-	    GLCHECK(glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(u32) * m->Meshes[i].NumFaces,
-				indices, GL_STATIC_DRAW));
-
-	    GLCHECK(glEnableVertexAttribArray(0));
-	    GLCHECK(glEnableVertexAttribArray(1));
-	    GLCHECK(glEnableVertexAttribArray(2));
-	    GLCHECK(glEnableVertexAttribArray(3));
-	    GLCHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(struct Vertex),
-					(void*)offsetof(struct Vertex, position)));
-	    GLCHECK(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(struct Vertex),
-					(void*)offsetof(struct Vertex, normal)));
-	    GLCHECK(glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(struct Vertex),
-					(void*)offsetof(struct Vertex, texCoords)));
-	    GLCHECK(glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(struct Vertex),
-					(void*)offsetof(struct Vertex, tangent)));
-
-		ret->meshes[i].numIndices = m->Meshes[i].NumFaces;
-		ret->meshes[i].world = world;
-
-		free(indices);
-
-	    SetObjectName(OI_VERTEX_ARRAY, ret->meshes[i].vao, m->Meshes[i].Name);
-	    SetObjectName(OI_VERTEX_BUFFER, ret->meshes[i].vbo, m->Meshes[i].Name);
-	    SetObjectName(OI_INDEX_BUFFER, ret->meshes[i].ebo, m->Meshes[i].Name);
-	}
-
-//	ValidateModelProxy(ret);
-
-	return ret;
 }
 
 f64 GetDeltaTime()
@@ -781,65 +584,6 @@ i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	return 1;
-}
-
-void GetNormal(const SMikkTSpaceContext * pContext, f32 fvNormOut[], const i32 iFace, const i32 iVert)
-{
-	struct CalculateTangetData *data = pContext->m_pUserData;
-	fvNormOut[0] = data->vertices[iFace * 3 + iVert].normal.X;
-	fvNormOut[1] = data->vertices[iFace * 3 + iVert].normal.Y;
-	fvNormOut[2] = data->vertices[iFace * 3 + iVert].normal.Z;
-}
-
-void GetPosition(const SMikkTSpaceContext * pContext, f32 fvPosOut[], const i32 iFace, const i32 iVert)
-{
-	struct CalculateTangetData *data = pContext->m_pUserData;
-	fvPosOut[0] = data->vertices[iFace * 3 + iVert].position.X;
-	fvPosOut[1] = data->vertices[iFace * 3 + iVert].position.Y;
-	fvPosOut[2] = data->vertices[iFace * 3 + iVert].position.Z;
-}
-
-void GetTexCoords(const SMikkTSpaceContext * pContext, f32 fvTexcOut[], const i32 iFace, const i32 iVert)
-{
-	struct CalculateTangetData *data = pContext->m_pUserData;
-	fvTexcOut[0] = data->vertices[iFace * 3 + iVert].texCoords.X;
-	fvTexcOut[1] = data->vertices[iFace * 3 + iVert].texCoords.Y;
-}
-
-
-i32 GetNumVerticesOfFace(const SMikkTSpaceContext * pContext, const i32 iFace)
-{
-	return 3;
-}
-
-void SetTSpaceBasic(const SMikkTSpaceContext * pContext, const f32 fvTangent[],
-		const f32 fSign, const i32 iFace, const i32 iVert)
-{
-	struct CalculateTangetData *data = pContext->m_pUserData;
-	data->vertices[iFace * 3 + iVert].tangent.X = fvTangent[0];
-	data->vertices[iFace * 3 + iVert].tangent.Y = fvTangent[1];
-	data->vertices[iFace * 3 + iVert].tangent.Z = fvTangent[2];
-	data->vertices[iFace * 3 + iVert].tangent.W = fSign;
-}
-
-i32 GetNumFaces(const SMikkTSpaceContext * pContext)
-{
-	struct CalculateTangetData *data = pContext->m_pUserData;
-	return data->numIndices / 3;
-}
-
-void CalculateTangentArray(struct CalculateTangetData *data)
-{
-	SMikkTSpaceInterface interface = { 0 };
-	interface.m_setTSpaceBasic = SetTSpaceBasic;
-	interface.m_getNumFaces = GetNumFaces;
-	interface.m_getNumVerticesOfFace = GetNumVerticesOfFace;
-	interface.m_getPosition = GetPosition;
-	interface.m_getNormal = GetNormal;
-	interface.m_getTexCoord = GetTexCoords;
-
-	SMikkTSpaceContext context = { .m_pInterface = &interface, .m_pUserData = data };
-	genTangSpaceDefault(&context);
 }
 
 i32 IsKeyPressed(GLFWwindow *window, i32 key)
@@ -1098,6 +842,22 @@ void LoadMaterials(struct Game *game)
 	}
 }
 
+void LoadMeshes(struct Game *game)
+{
+    struct ModelProxy *room = ModelProxy_Create("assets/room.obj");
+	{
+		Mat4X4 rotate90 = MathMat4X4RotateY(MathToRadians(-90.0f));
+		for (u32 i = 0; i < room->numMeshes; ++i) {
+			room->meshes[i].world = rotate90;
+		}
+	}
+	struct ModelProxy *unitCube = ModelProxy_Create("assets/unit_cube.obj");
+	game->models = malloc(sizeof(struct ModelProxy*) * 2);
+	game->numModels = 2;
+	game->models[0] = room;
+	game->models[1] = unitCube;
+}
+
 void GLAPIENTRY
 MessageCallback(GLenum source,
                 GLenum type,
@@ -1127,4 +887,43 @@ struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name)
 	}
 	UtilsDebugPrint("WARN: Failed to find material with name %s", name);
 	return NULL;
+}
+
+void LoadTextures(struct Game *game)
+{
+stbi_set_flip_vertically_on_load(1);
+	const i8 *albedoTexturePaths[] = {
+		"assets/older-wood-flooring-bl/older-wood-flooring_albedo.png",
+		"assets/rusty-metal-bl/rusty-metal_albedo.png",
+		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_COL_1K_SPECULAR.png",
+		"assets/albedo_default.png",
+	};
+
+	const i8 *normalTexturesPaths[] = {
+		"assets/older-wood-flooring-bl/older-wood-flooring_normal-ogl.png",
+		"assets/rusty-metal-bl/rusty-metal_normal-ogl.png",
+		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_NRM_1K_SPECULAR.png",
+		"assets/normal_default.png",
+	};
+
+	const i8 *roughnessTexturePaths[] = {
+		"assets/older-wood-flooring-bl/older-wood-flooring_roughness.png",
+		"assets/rusty-metal-bl/rusty-metal_roughness.png",
+		"assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_GLOSS_1K_SPECULAR.png",
+		"assets/normal_default.png",
+	};
+
+	game->numTextures = ARRAY_COUNT(albedoTexturePaths);
+	game->albedoTextures = malloc(sizeof *game->albedoTextures * game->numTextures);
+	memset(game->albedoTextures, 0, sizeof *game->albedoTextures * game->numTextures);
+	game->roughnessTextures = malloc(sizeof *game->roughnessTextures * game->numTextures);
+	memset(game->roughnessTextures, 0, sizeof *game->roughnessTextures * game->numTextures);
+	game->normalTextures = malloc(sizeof *game->normalTextures * game->numTextures);
+	memset(game->normalTextures, 0, sizeof *game->normalTextures * game->numTextures);
+
+	for (u32 i = 0; i < ARRAY_COUNT(albedoTexturePaths); ++i) {
+		Texture2D_Load(game->albedoTextures + i, albedoTexturePaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+		Texture2D_Load(game->normalTextures + i, normalTexturesPaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+		Texture2D_Load(game->roughnessTextures + i, roughnessTexturePaths[i], GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+	}
 }
