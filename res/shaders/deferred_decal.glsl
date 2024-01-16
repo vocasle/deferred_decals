@@ -11,6 +11,7 @@ uniform mat4 g_world;
 uniform sampler2D g_depth;
 uniform sampler2D g_albedo;
 uniform sampler2D g_normal;
+uniform sampler2D g_gbufferNormal;
 
 in vec3 WorldPos;
 in vec2 TexCoords;
@@ -41,21 +42,29 @@ void main()
     vec3  worldPos = WorldPosFromDepth(screenPos, depth);
 	vec3 localPos = (g_decalInvWorld * vec4(worldPos, 1.0)).xyz;
 	vec2 decalUV = localPos.xz * 0.5 + 0.5;
-	
-	if (abs(localPos).x > 1.0 || abs(localPos).z > 1.0 || abs(localPos).y > 1.0) {
+    vec3 gbufferNormal = texture(g_gbufferNormal, uv).xyz;
+	vec3 T = vec3(1.0, 0.0, 0.0);
+    vec3 B = vec3(0.0, 0.0, 1.0);
+    vec3 N = vec3(0.0, 1.0, 0.0);
+
+    vec3 projectionDirectionWS = mat3(g_world) * N; 
+    // discard pixels in case angle between axis of projection and
+    // normal from GBuffer is greater than 0
+    if (dot(projectionDirectionWS, normalize(gbufferNormal)) < 0.9f) {
+        discard;
+    }
+	// discard pixels that lie outside of projection box
+	if (abs(localPos).x > 1.0 || abs(localPos).z > 1.0 ||
+        abs(localPos).y > 1.0) {
 		discard;
 	}
-	else {
-		vec3 T = vec3(1.0, 0.0, 0.0);
-		vec3 B = vec3(0.0, 0.0, 1.0);
-		vec3 N = vec3(0.0, 1.0, 0.0);
-		mat3 localTBN = mat3(T, B, N);
-		vec3 normalTS = texture(g_normal, decalUV).xyz * 2.0 - 1.0;
-		vec3 normal = localTBN * normalTS;
-		normal = mat3(g_world) * normalize(normal);
-		vec3 albedo = texture(g_albedo, decalUV).rgb;
-		float roughness = 1.0;
-		gAlbedoSpec = vec4(albedo, roughness);
-		gNormal = normalize(normal);
-	}
+
+    mat3 localTBN = mat3(T, B, N);
+    vec3 normalTS = texture(g_normal, decalUV).xyz * 2.0 - 1.0;
+    vec3 normal = localTBN * normalTS;
+    normal = mat3(g_world) * normalize(normal);
+    vec3 albedo = texture(g_albedo, decalUV).rgb;
+    float roughness = 1.0;
+    gAlbedoSpec = vec4(albedo, roughness);
+    gNormal = normalize(normal + gbufferNormal);
 }

@@ -48,6 +48,7 @@ struct GBuffer {
     struct Texture2D normalTex;
     struct Texture2D albedoTex;
     struct Texture2D depthTex;
+    struct Texture2D normalCopyTex;
     u32 framebuffer;
     u32 depthRenderBuffer;
 };
@@ -138,7 +139,10 @@ i32 main(void)
     Mat4X4 decalWorlds[2] = { 0 };
     Mat4X4 decalInvWorlds[2] = { 0 };
     const struct Transform decalTransforms[] = {
-        {.scale = {2.0f, 2.0f, 2.0f}},
+        {
+            .scale = {2.0f, 2.0f, 2.0f},
+            .translation.Y = 2.0f
+        },
         {
             .scale = {2.0f, 2.0f, 2.0f},
             .translation = {2.0f, 5.0f, -9.0f},
@@ -229,17 +233,34 @@ i32 main(void)
                 glCullFace(GL_FRONT);
                 // Copy gbuffer depth
                 {
+                    PushRenderPassAnnotation("Copy GBuffer Depth");
                     GLCHECK(glBindTexture(GL_TEXTURE_2D,
                         game->gbuffer.depthTex.handle));
                     GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,
                             game->framebufferSize.width,
                             game->framebufferSize.height));
                     GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
+                    PopRenderPassAnnotation();
+                }
+                // Copy gbuffer normal
+                {
+                    PushRenderPassAnnotation("Copy GBuffer Normal");
+                    GLCHECK(glNamedFramebufferReadBuffer(game->gbuffer.framebuffer,
+                        GL_COLOR_ATTACHMENT1));
+                    GLCHECK(glBindTexture(GL_TEXTURE_2D,
+                        game->gbuffer.normalCopyTex.handle));
+                    GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,
+                            game->framebufferSize.width,
+                            game->framebufferSize.height));
+                    GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
+                    PopRenderPassAnnotation();
                 }
                 const struct ModelProxy *unitCube = game->models[1];
                 for (u32 i = 0; i < unitCube->numMeshes; ++i) {
                     GLCHECK(glUseProgram(Material_GetHandle(m)));
                     Material_SetTexture(m, "g_depth", &game->gbuffer.depthTex);
+                    Material_SetTexture(m, "g_gbufferNormal",
+                        &game->gbuffer.normalCopyTex);
                     const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(
                         &game->camera.view, &game->camera.proj);
                     const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
@@ -533,6 +554,20 @@ i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight)
         };
         Texture2D_Init(&gbuffer->albedoTex, &info);
     }
+    {
+        // Copy of GBuffer Normal
+        const struct Texture2DCreateInfo info = {
+            .format = GL_RGBA,
+            .internalFormat = GL_RGBA16F,
+            .type = GL_UNSIGNED_BYTE,
+            .genFB = FALSE,
+            .width = fbWidth,
+            .height = fbHeight,
+            .name = "Copy.GBuffer.Normal"
+        };
+        Texture2D_Init(&gbuffer->normalCopyTex, &info);
+    }
+
     const u32 attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
         GL_COLOR_ATTACHMENT2 };
     GLCHECK(glDrawBuffers(ARRAY_COUNT(attachments), attachments));
@@ -773,7 +808,7 @@ void LoadMaterials(struct Game *game)
     const struct MaterialCreateInfo materialCreateInfos[] = {
         {"shaders/vert.glsl", "shaders/frag.glsl", "Phong"},
         {"shaders/vert.glsl", "shaders/deferred_decal.glsl", "Decal",
-            {"g_depth","g_albedo", "g_normal"}, 3
+            {"g_depth","g_albedo", "g_normal", "g_gbufferNormal"}, 4
         },
         {"shaders/vert.glsl", "shaders/gbuffer_frag.glsl", "GBuffer",
             {"g_albedoTex", "g_normalTex", "g_roughnessTex"}, 3
@@ -843,7 +878,7 @@ struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name)
 
 void LoadTextures(struct Game *game)
 {
-stbi_set_flip_vertically_on_load(1);
+    stbi_set_flip_vertically_on_load(1);
     const i8 *albedoTexturePaths[] = {
         "assets/older-wood-flooring-bl/older-wood-flooring_albedo.png",
         "assets/rusty-metal-bl/rusty-metal_albedo.png",
