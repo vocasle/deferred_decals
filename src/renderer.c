@@ -93,6 +93,50 @@ static struct File LoadShader(const i8 *shaderName)
 	return out;
 }
 
+static i32 CompileShader(const struct File *shader, i32 shaderType,
+    u32 *pHandle)
+{
+	GLCHECK(*pHandle = glCreateShader(shaderType));
+	GLCHECK(glShaderSource(*pHandle, 1,
+			(const GLchar **)&shader->contents,
+			(const GLint*)&shader->size));
+	GLCHECK(glCompileShader(*pHandle));
+	i32 compileStatus = 0;
+	GLCHECK(glGetShaderiv(*pHandle, GL_COMPILE_STATUS,
+			&compileStatus));
+	if (!compileStatus) {
+		i32 len = 0;
+		GLCHECK(glGetShaderiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
+		i8 *msg = malloc(len);
+		GLCHECK(glGetShaderInfoLog(*pHandle, len, &len, msg));
+		UtilsDebugPrint("ERROR: Failed to compile shader. %s", msg);
+		free(msg);
+	}
+
+	return compileStatus;
+}
+
+static i32 LinkProgram(const u32 vs, const u32 fs, u32 *pHandle)
+{
+	GLCHECK(*pHandle = glCreateProgram());
+	GLCHECK(glAttachShader(*pHandle, vs));
+	GLCHECK(glAttachShader(*pHandle, fs));
+	GLCHECK(glLinkProgram(*pHandle));
+
+	i32 linkStatus = 0;
+	GLCHECK(glGetProgramiv(*pHandle, GL_LINK_STATUS, &linkStatus));
+	if (!linkStatus) {
+		i32 len = 0;
+		GLCHECK(glGetProgramiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
+		i8 *msg = malloc(len);
+		GLCHECK(glGetProgramInfoLog(*pHandle, len, &len, msg));
+		UtilsDebugPrint("ERROR: Failed to link shaders. %s", msg);
+		free(msg);
+	}
+
+	return linkStatus;
+}
+
 static u32 CreateProgram(const i8 *fs, const i8 *vs, const i8 *programName)
 {
 	u32 programHandle = 0;
@@ -121,51 +165,6 @@ static u32 CreateProgram(const i8 *fs, const i8 *vs, const i8 *programName)
 	GLCHECK(glDeleteShader(vertHandle));
 	GLCHECK(glDeleteShader(fragHandle));
 	return programHandle;
-}
-
-static i32 CompileShader(const struct File *shader, i32 shaderType,
-		u32 *pHandle)
-{
-	GLCHECK(*pHandle = glCreateShader(shaderType));
-	GLCHECK(glShaderSource(*pHandle, 1,
-			(const GLchar **)&shader->contents,
-			(const GLint*)&shader->size));
-	GLCHECK(glCompileShader(*pHandle));
-	i32 compileStatus = 0;
-	GLCHECK(glGetShaderiv(*pHandle, GL_COMPILE_STATUS,
-			&compileStatus));
-	if (!compileStatus) {
-		i32 len = 0;
-		GLCHECK(glGetShaderiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
-		i8 *msg = malloc(len);
-		GLCHECK(glGetShaderInfoLog(*pHandle, len, &len, msg));
-		UtilsDebugPrint("ERROR: Failed to compile shader. %s", msg);
-		free(msg);
-	}
-
-	return compileStatus;
-}
-
-static i32 LinkProgram(const u32 vs, const u32 fs,
-		u32 *pHandle)
-{
-	GLCHECK(*pHandle = glCreateProgram());
-	GLCHECK(glAttachShader(*pHandle, vs));
-	GLCHECK(glAttachShader(*pHandle, fs));
-	GLCHECK(glLinkProgram(*pHandle));
-
-	i32 linkStatus = 0;
-	GLCHECK(glGetProgramiv(*pHandle, GL_LINK_STATUS, &linkStatus));
-	if (!linkStatus) {
-		i32 len = 0;
-		GLCHECK(glGetProgramiv(*pHandle, GL_INFO_LOG_LENGTH, &len));
-		i8 *msg = malloc(len);
-		GLCHECK(glGetProgramInfoLog(*pHandle, len, &len, msg));
-		UtilsDebugPrint("ERROR: Failed to link shaders. %s", msg);
-		free(msg);
-	}
-
-	return linkStatus;
 }
 
 static void CopyMaterialCreateInfo(struct MaterialCreateInfo *dest,
