@@ -502,6 +502,10 @@ static struct ModelProxy *CreateModelProxy(const struct Model *m)
 
 		ret->meshes[i].numIndices = m->Meshes[i].NumFaces;
 		ret->meshes[i].world = world;
+        const u32 nameLen = strlen(m->Meshes[i].Name);
+        ret->meshes[i].name = malloc(nameLen + 1);
+        ZERO_MEMORY_SZ(ret->meshes[i].name, nameLen + 1);
+        memcpy(ret->meshes[i].name, m->Meshes[i].Name, nameLen);
 
 		free(indices);
 

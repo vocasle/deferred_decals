@@ -24,6 +24,7 @@ struct MeshProxy {
 	struct Texture2D *albedo;
 	struct Texture2D *normal;
 	struct Texture2D *specular;
+    i8 *name;
 };
 
 struct ModelProxy {

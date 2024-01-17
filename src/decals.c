@@ -71,6 +71,12 @@ struct Camera {
     Vec3D front;
 };
 
+struct MeshTextureMapping {
+    const i8 *meshNames[8];
+    u32 numMeshNames;
+    i32 texIdx;
+};
+
 struct Game {
     struct GBuffer gbuffer;
     struct FramebufferSize framebufferSize;
@@ -91,8 +97,6 @@ struct Game {
 struct Game *Game_Create();
 
 void OnFramebufferResize(GLFWwindow *window, i32 width, i32 height);
-
-f64 GetDeltaTime();
 
 void RenderQuad(const struct FullscreenQuadPass *fsqPass);
 
@@ -125,6 +129,9 @@ i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth,
 
 struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name);
 
+i32 FindTextureIdxForMesh(const struct MeshTextureMapping *mappings,
+    u32 numMappings, const i8 *meshName, const i32 defaultTexIdx);
+
 i32 main(void)
 {
     struct Game *game = Game_Create();
@@ -138,7 +145,7 @@ i32 main(void)
 
     Mat4X4 decalWorlds[2] = { 0 };
     Mat4X4 decalInvWorlds[2] = { 0 };
-    const struct Transform decalTransforms[] = {
+    struct Transform decalTransforms[] = {
         {
             .scale = {2.0f, 2.0f, 2.0f},
             .translation.Y = 2.0f
@@ -171,7 +178,32 @@ i32 main(void)
     const i32 C_RUSTY_METAL_TEX_IDX = 1;
     const i32 C_BRICKS_TEX_IDX = 2;
     const i32 C_DEFAULT_TEX_IDX = 3;
-    const i32 DECAL_TEXTURE_INDICES[2] = { C_WOOD_TEX_IDX, C_BRICKS_TEX_IDX };
+    const i32 C_MUD_1_TEX_IDX = 4;
+    const i32 C_CAVE_WALL_TEX_IDX = 5;
+    const i32 C_WALL_W_PLANTS_TEX_IDX = 6;
+    // const i32 C_DEFAULT_TEX_IDX = C_MUD_1_TEX_IDX;
+
+    const i32 DECAL_TEXTURE_INDICES[2] = { C_RUSTY_METAL_TEX_IDX,
+        C_BRICKS_TEX_IDX };
+
+    const struct MeshTextureMapping textureMappings[] = {
+        {
+            .meshNames = {"Cube.001", "Cube.002", "Cube.003", "Cube.004"},
+            // .numMeshNames = 5,
+            .numMeshNames = 4,
+            .texIdx = C_WALL_W_PLANTS_TEX_IDX
+        },
+        {
+            .meshNames = {"Cone", "Icosphere"},
+            .numMeshNames = 2,
+            .texIdx = C_DEFAULT_TEX_IDX
+        },
+        {
+            .meshNames = {"Cube"},
+            .numMeshNames = 1,
+            .texIdx = C_CAVE_WALL_TEX_IDX
+        },
+    };
 
 #if _WIN32 // On Windows GLFW window won't start maximazed. We force it.
     glfwMaximizeWindow(game->window);
@@ -207,12 +239,15 @@ i32 main(void)
 
                 const struct ModelProxy *room = game->models[0];
                 for (u32 i = 0; i < room->numMeshes; ++i) {
+                    const i32 texIdx = FindTextureIdxForMesh(textureMappings,
+                        ARRAY_COUNT(textureMappings), room->meshes[i].name,
+                        C_DEFAULT_TEX_IDX);
                     Material_SetTexture(m, "g_albedoTex",
-                        &game->albedoTextures[C_DEFAULT_TEX_IDX]);
+                        &game->albedoTextures[texIdx]);
                     Material_SetTexture(m, "g_normalTex",
-                        &game->normalTextures[C_DEFAULT_TEX_IDX]);
+                        &game->normalTextures[texIdx]);
                     Material_SetTexture(m, "g_roughnessTex",
-                        &game->roughnessTextures[C_DEFAULT_TEX_IDX]);
+                        &game->roughnessTextures[texIdx]);
 
                     GLCHECK(glBindVertexArray(room->meshes[i].vao));
                     Material_SetUniform(m, "g_world", sizeof(Mat4X4),
@@ -264,8 +299,8 @@ i32 main(void)
                     const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(
                         &game->camera.view, &game->camera.proj);
                     const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
-                    const Vec4D rtSize = { game->framebufferSize.width,
-                        game->framebufferSize.height,
+                    const Vec4D rtSize = { (float)game->framebufferSize.width,
+                        (float)game->framebufferSize.height,
                         1.0f / game->framebufferSize.width,
                         1.0f / game->framebufferSize.height };
 
@@ -455,15 +490,6 @@ void OnFramebufferResize(GLFWwindow *window, i32 width,
     game->framebufferSize.width = width;
     game->framebufferSize.height = height;
     InitGBuffer(&game->gbuffer, width, height);
-}
-
-f64 GetDeltaTime()
-{
-    static f64 prevTime = 0.0;
-    const f64 now = glfwGetTime();
-    const f64 dt = now - prevTime;
-    prevTime = now;
-    return dt;
 }
 
 void InitQuadPass(struct FullscreenQuadPass *fsqPass)
@@ -699,7 +725,6 @@ void Camera_Init(struct Camera *camera, const Vec3D *position,
 
 void Game_Update(struct Game *game)
 {
-    const f64 dt = GetDeltaTime();
     const Vec3D focusPos = MathVec3DAddition(&game->camera.position,
         &game->camera.front);
     const Vec3D up = { 0.0f, 1.0f, 0.0f };
@@ -709,13 +734,13 @@ void Game_Update(struct Game *game)
 
 void PushRenderPassAnnotation(const i8* passName)
 {
-    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, strlen(passName),
-        passName);
+    GLCHECK(glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0,
+        (i32)strlen(passName), passName));
 }
 
 void PopRenderPassAnnotation(void)
 {
-    glPopDebugGroup();
+    GLCHECK(glPopDebugGroup());
 }
 
 Mat4X4 TransformToMat4X4(const struct Transform *t)
@@ -843,14 +868,9 @@ void LoadMeshes(struct Game *game)
     game->models[1] = unitCube;
 }
 
-void GLAPIENTRY
-MessageCallback(GLenum source,
-                GLenum type,
-                GLuint id,
-                GLenum severity,
-                GLsizei length,
-                const GLchar* message,
-                const void* userParam)
+void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
+    GLenum severity, GLsizei length, const GLchar* message,
+    const void* userParam)
 {
     if (source != GL_DEBUG_SOURCE_APPLICATION &&
         severity >= GL_DEBUG_SEVERITY_LOW) {
@@ -884,6 +904,9 @@ void LoadTextures(struct Game *game)
         "assets/rusty-metal-bl/rusty-metal_albedo.png",
         "assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_COL_1K_SPECULAR.png",
         "assets/albedo_default.png",
+        "assets/Mud/1/1_diffuseOriginal.bmp",
+        "assets/Cave Wall/3/3_diffuseOriginal.bmp",
+        "assets/Wall_with_plants/2/2_diffuseOriginal.bmp",
     };
 
     const i8 *normalTexturesPaths[] = {
@@ -891,13 +914,19 @@ void LoadTextures(struct Game *game)
         "assets/rusty-metal-bl/rusty-metal_normal-ogl.png",
         "assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_NRM_1K_SPECULAR.png",
         "assets/normal_default.png",
+        "assets/Mud/1/1_normal.bmp",
+        "assets/Cave Wall/3/3_normal.bmp",
+        "assets/Wall_with_plants/2/2_normal.bmp",
     };
 
     const i8 *roughnessTexturePaths[] = {
         "assets/older-wood-flooring-bl/older-wood-flooring_roughness.png",
         "assets/rusty-metal-bl/rusty-metal_roughness.png",
         "assets/BricksReclaimedWhitewashedOffset001/BricksReclaimedWhitewashedOffset001_GLOSS_1K_SPECULAR.png",
-        "assets/normal_default.png",
+        "assets/roughness_default.png",
+        "assets/Mud/1/1_smoothness.bmp",
+        "assets/Cave Wall/3/3_smoothness.bmp",
+        "assets/Wall_with_plants/2/2_smoothness.bmp",
     };
 
     game->numTextures = ARRAY_COUNT(albedoTexturePaths);
@@ -940,4 +969,17 @@ struct Game *Game_Create(void)
     LoadTextures(game);
 
     return game;
+}
+
+i32 FindTextureIdxForMesh(const struct MeshTextureMapping *mappings,
+    u32 numMappings, const i8 *meshName, const i32 defaultTexIdx)
+{
+    for (u32 i = 0; i < numMappings; ++i) {
+        for (u32 j = 0; j < mappings[i].numMeshNames; ++j) {
+            if (strcmp(mappings[i].meshNames[j], meshName) == 0) {
+                return mappings[i].texIdx;
+            }
+        }
+    }
+    return defaultTexIdx;
 }

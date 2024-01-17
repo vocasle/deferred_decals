@@ -29,6 +29,7 @@ unsigned char* UtilsReadData(const char* filepath, unsigned int* bufferSize);
 #define ARRAY_COUNT(x) (u32)(sizeof(x) / sizeof(x[0]))
 
 #define ZERO_MEMORY(ptr) memset(ptr, 0, sizeof *(ptr))
+#define ZERO_MEMORY_SZ(ptr, sz) memset(ptr, 0, sz)
 
 /* Dynamic Array */
 
