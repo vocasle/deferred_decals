@@ -47,10 +47,23 @@ struct UtilsFileArray *UtilsFileUtilsWalkDirectory(const char *directory);
 #define ZERO_MEMORY(ptr) memset(ptr, 0, sizeof *(ptr))
 #define ZERO_MEMORY_SZ(ptr, sz) memset(ptr, 0, sz)
 
-#define ASSERT(x) UtilsFatalError("Assertion %s failed at %s:%d", \
-    #x, __FILE__, __LINE__)
-#define ASSERT_MSG(x, msg) UtilsFatalError("Assertion %s failed at %s:%d, %s", \
-    %x, __FILE__, __LINE__, (msg))
+#define ASSERT(x) \
+do { \
+    if (!(x)) { \
+        UtilsFatalError("Assertion %s failed at %s:%d", \
+            #x, __FILE__, __LINE__); \
+    } \
+} \
+while(0)
+
+#define ASSERT_MSG(x, msg) \
+do { \
+    if (!(x)) { \
+        UtilsFatalError("Assertion %s failed at %s:%d, %s", \
+        %x, __FILE__, __LINE__, (msg)); \
+    } \
+} \
+while(0)
 
 /* Dynamic Array */
 

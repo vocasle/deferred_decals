@@ -528,7 +528,7 @@ void Texture2D_Load(struct Texture2D *t, const i8 *texPath, i32 internalFormat,
 		i32 format, i32 type)
 {
 	i32 channelsInFile = 0;
-	u8 *data = stbi_load(UtilsFormatStr("%s/%s", RES_HOME, texPath), &t->width, &t->height,
+	u8 *data = stbi_load(texPath, &t->width, &t->height,
 		&channelsInFile, STBI_rgb_alpha);
 	if (!data) {
 		UtilsDebugPrint("ERROR: Failed to load %s", texPath);

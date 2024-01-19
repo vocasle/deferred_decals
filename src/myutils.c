@@ -208,9 +208,11 @@ struct UtilsFileArray *UtilsFileUtilsWalkDirectory(const char *directory)
                 fileSize.HighPart = findData.nFileSizeHigh;
                 arr->files = realloc(arr->files, sizeof(struct UtilsFile) *
                     (arr->numFiles + 1));
+                ZERO_MEMORY_SZ(arr->files[arr->numFiles].name, 256);
                 memcpy(arr->files[arr->numFiles].name, fileName,
                     strlen(fileName));
                 arr->files[arr->numFiles].size = fileSize.QuadPart;
+                arr->numFiles++;
             }
         }
         while (FindNextFile(file, &findData) != 0);
@@ -218,6 +220,6 @@ struct UtilsFileArray *UtilsFileUtilsWalkDirectory(const char *directory)
     DirectoryStack_Destroy(stack);
     return arr;
 #else
-    return NULL;
+    #error Not implemented for current platform!
 #endif
 }
