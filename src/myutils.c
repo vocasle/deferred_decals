@@ -8,6 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if _WIN32
+#include <Windows.h>
+#endif
+
 void UtilsDebugPrint(const char* fmt, ...)
 {
     char out[512];
@@ -101,4 +105,119 @@ unsigned char* UtilsReadData(const char* filepath, unsigned int* bufferSize)
     fclose(f);
     *bufferSize = sb.st_size;
     return bytes;
+}
+
+#define DIRECTORY_NAME_MAX_LENGTH 255
+#define DIRECTORY_STACK_MIN_CAPACITY 8
+struct DirectoryStack {
+    char **directories;
+    uint32_t numDirectories;
+    uint32_t capacity;
+};
+
+struct DirectoryStack *DirectoryStack_Create(void)
+{
+    struct DirectoryStack *stack = malloc(sizeof *stack);
+    ZERO_MEMORY_SZ(stack, sizeof(struct DirectoryStack));
+    stack->directories = malloc(sizeof(char*) * DIRECTORY_STACK_MIN_CAPACITY);
+    ZERO_MEMORY_SZ(stack->directories, sizeof(char*) * 
+        DIRECTORY_STACK_MIN_CAPACITY);
+    stack->capacity = DIRECTORY_STACK_MIN_CAPACITY;
+    return stack;
+}
+
+void DirectoryStack_Destroy(struct DirectoryStack *stack)
+{
+    for (uint32_t i = 0; i < stack->numDirectories; ++i) {
+        free(stack->directories[i]);
+    }
+    free(stack->directories);
+    free(stack);
+    stack = NULL;
+}
+
+const char *DirectoryStack_Pop(struct DirectoryStack *stack) {
+    
+    const char *directory = stack->directories[stack->numDirectories - 1];
+    stack->numDirectories--;
+    return directory;
+}
+
+void DirectoryStack_Push(struct DirectoryStack *stack,
+    const char *directory)
+{
+    if (stack->numDirectories + 1 == stack->capacity) {
+        stack->capacity = stack->capacity * 2;
+        stack->directories = realloc(stack->directories, sizeof(char*) *
+            stack->capacity);
+    }
+
+    const uint32_t len = strlen(directory) + 1;
+    stack->directories[stack->numDirectories] = malloc(len);
+    ZERO_MEMORY_SZ(stack->directories[stack->numDirectories], len);
+    memcpy(stack->directories[stack->numDirectories], directory, len);
+    stack->numDirectories++;
+}
+
+void UtilsFileArray_Destroy(struct UtilsFileArray *array)
+{
+    free(array->files);
+    free(array);
+    array = NULL;
+}
+
+struct UtilsFileArray *UtilsFileUtilsWalkDirectory(const char *directory)
+{
+
+#if _WIN32
+    const char *root = NULL;
+    struct DirectoryStack *stack = DirectoryStack_Create();
+    DirectoryStack_Push(stack, directory);
+    WIN32_FIND_DATA findData = { 0 };
+    const char *excludes[] = {".", ".."};
+    struct UtilsFileArray *arr = malloc(sizeof *arr);
+    ZERO_MEMORY_SZ(arr, sizeof(struct UtilsFileArray));
+    LARGE_INTEGER fileSize = { 0 };
+
+    while (stack->numDirectories > 0)
+    {
+        root = DirectoryStack_Pop(stack);
+        HANDLE file = FindFirstFile(UtilsFormatStr("%s/*", root), &findData);
+        if (!file) {
+            UtilsDebugPrint("ERROR: Failed to find %s", directory);
+            free(arr);
+            arr = NULL;
+            break;
+        }
+
+        do {
+            if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                UtilsDebugPrint("Directory: %s/%s", root, findData.cFileName);
+                if (strcmp(findData.cFileName, excludes[0]) == 0 ||
+                    strcmp(findData.cFileName, excludes[1]) == 0) {
+                    continue;
+                }
+                DirectoryStack_Push(stack, UtilsFormatStr("%s/%s", root,
+                    findData.cFileName));
+            }
+            else {
+                const char *fileName = UtilsFormatStr("%s/%s", root,
+                    findData.cFileName);
+                UtilsDebugPrint("File: %s", fileName);
+                fileSize.LowPart = findData.nFileSizeLow;
+                fileSize.HighPart = findData.nFileSizeHigh;
+                arr->files = realloc(arr->files, sizeof(struct UtilsFile) *
+                    (arr->numFiles + 1));
+                memcpy(arr->files[arr->numFiles].name, fileName,
+                    strlen(fileName));
+                arr->files[arr->numFiles].size = fileSize.QuadPart;
+            }
+        }
+        while (FindNextFile(file, &findData) != 0);
+    }
+    DirectoryStack_Destroy(stack);
+    return arr;
+#else
+    return NULL;
+#endif
 }

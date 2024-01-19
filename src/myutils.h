@@ -26,10 +26,31 @@ const char *UtilsGetStrAfterChar(const char *str, const char ch);
 
 unsigned char* UtilsReadData(const char* filepath, unsigned int* bufferSize);
 
+struct UtilsFile
+{
+    char name[256];
+    uint32_t size;
+};
+
+struct UtilsFileArray
+{
+    struct UtilsFile *files;
+    uint32_t numFiles;
+};
+
+void UtilsFileArray_Destroy(struct UtilsFileArray *array);
+
+struct UtilsFileArray *UtilsFileUtilsWalkDirectory(const char *directory);
+
 #define ARRAY_COUNT(x) (u32)(sizeof(x) / sizeof(x[0]))
 
 #define ZERO_MEMORY(ptr) memset(ptr, 0, sizeof *(ptr))
 #define ZERO_MEMORY_SZ(ptr, sz) memset(ptr, 0, sz)
+
+#define ASSERT(x) UtilsFatalError("Assertion %s failed at %s:%d", \
+    #x, __FILE__, __LINE__)
+#define ASSERT_MSG(x, msg) UtilsFatalError("Assertion %s failed at %s:%d, %s", \
+    %x, __FILE__, __LINE__, (msg))
 
 /* Dynamic Array */
 
