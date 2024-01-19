@@ -74,7 +74,13 @@ struct Camera {
 struct MeshTextureMapping {
     const i8 *meshNames[8];
     u32 numMeshNames;
-    i32 texIdx;
+    const i8 *textureName;
+};
+
+struct TextureIndex {
+    u32 albedo;
+    u32 normal;
+    u32 roughness;
 };
 
 struct Game {
@@ -131,8 +137,9 @@ i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth,
 
 struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name);
 
-i32 FindTextureIdxForMesh(const struct MeshTextureMapping *mappings,
-    u32 numMappings, const i8 *meshName, const i32 defaultTexIdx);
+struct TextureIndex FindTextureIdxForMesh(const struct Game *game,
+    const struct MeshTextureMapping *mappings, u32 numMappings,
+    const i8 *meshName, const i32 defaultTexIdx);
 
 i32 main(void)
 {
@@ -176,35 +183,35 @@ i32 main(void)
     struct FullscreenQuadPass fsqPass = { 0 };
     InitQuadPass(&fsqPass);
 
-    const i32 C_WOOD_TEX_IDX = 0;
-    const i32 C_RUSTY_METAL_TEX_IDX = 1;
-    const i32 C_BRICKS_TEX_IDX = 2;
-    const i32 C_DEFAULT_TEX_IDX = 3;
-    const i32 C_MUD_1_TEX_IDX = 4;
-    const i32 C_CAVE_WALL_TEX_IDX = 5;
-    const i32 C_WALL_W_PLANTS_TEX_IDX = 6;
-    // const i32 C_DEFAULT_TEX_IDX = C_MUD_1_TEX_IDX;
-
-    const i32 DECAL_TEXTURE_INDICES[2] = { C_RUSTY_METAL_TEX_IDX,
-        C_BRICKS_TEX_IDX };
-
     const struct MeshTextureMapping textureMappings[] = {
         {
             .meshNames = {"WallRight", "WallLeft", "WallBack"},
             .numMeshNames = 3,
-            .texIdx = C_CAVE_WALL_TEX_IDX
+            .textureName = "Mud"
         },
         {
             .meshNames = {"Cone", "Cube", "Icosphere"},
             .numMeshNames = 3,
-            .texIdx = C_DEFAULT_TEX_IDX
+            .textureName = "Default"
         },
         {
             .meshNames = {"Floor"},
             .numMeshNames = 1,
-            .texIdx = C_MUD_1_TEX_IDX
+            .textureName = "Ground"
         },
+        {
+            .meshNames = {"Decal0"},
+            .numMeshNames = 1,
+            .textureName = "RustyMetal"
+        },
+        {
+            .meshNames = {"Decal1"},
+            .numMeshNames = 1,
+            .textureName = "Bricks"
+        }
     };
+
+    const i32 C_DEFAULT_TEX_IDX = 0;
 
 #if _WIN32 // On Windows GLFW window won't start maximazed. We force it.
     glfwMaximizeWindow(game->window);
@@ -240,15 +247,15 @@ i32 main(void)
 
                 const struct ModelProxy *room = game->models[0];
                 for (u32 i = 0; i < room->numMeshes; ++i) {
-                    const i32 texIdx = FindTextureIdxForMesh(textureMappings,
-                        ARRAY_COUNT(textureMappings), room->meshes[i].name,
-                        C_DEFAULT_TEX_IDX);
+                    const struct TextureIndex texIdx = FindTextureIdxForMesh(
+                        game, textureMappings, ARRAY_COUNT(textureMappings),
+                        room->meshes[i].name, C_DEFAULT_TEX_IDX);
                     Material_SetTexture(m, "g_albedoTex",
-                        &game->albedoTextures[texIdx]);
+                        &game->albedoTextures[texIdx.albedo]);
                     Material_SetTexture(m, "g_normalTex",
-                        &game->normalTextures[texIdx]);
+                        &game->normalTextures[texIdx.normal]);
                     Material_SetTexture(m, "g_roughnessTex",
-                        &game->roughnessTextures[texIdx]);
+                        &game->roughnessTextures[texIdx.roughness]);
 
                     GLCHECK(glBindVertexArray(room->meshes[i].vao));
                     Material_SetUniform(m, "g_world", sizeof(Mat4X4),
@@ -325,10 +332,14 @@ i32 main(void)
                             &decalWorlds[n], UT_MAT4);
                         Material_SetUniform(m, "g_decalInvWorld",
                             sizeof(Mat4X4), &decalInvWorlds[n], UT_MAT4);
+                        const struct TextureIndex texIdx = 
+                            FindTextureIdxForMesh(game, textureMappings,
+                                ARRAY_COUNT(textureMappings),
+                            UtilsFormatStr("Decal%d", n), C_DEFAULT_TEX_IDX);
                         Material_SetTexture(m, "g_albedo",
-                            &game->albedoTextures[DECAL_TEXTURE_INDICES[n]]);
+                            &game->albedoTextures[texIdx.albedo]);
                         Material_SetTexture(m, "g_normal",
-                            &game->normalTextures[DECAL_TEXTURE_INDICES[n]]);
+                            &game->normalTextures[texIdx.normal]);
                         GLCHECK(glDrawElements(GL_TRIANGLES,
                             unitCube->meshes[i].numIndices, GL_UNSIGNED_INT,
                             NULL));
@@ -977,15 +988,43 @@ struct Game *Game_Create(void)
     return game;
 }
 
-i32 FindTextureIdxForMesh(const struct MeshTextureMapping *mappings,
-    u32 numMappings, const i8 *meshName, const i32 defaultTexIdx)
+struct TextureIndex FindTextureIndices(const struct Game *game,
+    const i8 *texName)
+{
+    struct TextureIndex texIdx = { 0 };
+    for (u32 i = 0; i < game->numAlbedoTextures; ++i) {
+        if (strcmp(game->albedoTextures[i].name, texName) == 0) {
+            texIdx.albedo = i;
+            break;
+        }
+    }
+    for (u32 i = 0; i < game->numNormalTextures; ++i) {
+        if (strcmp(game->normalTextures[i].name, texName) == 0) {
+            texIdx.normal = i;
+            break;
+        }
+    }
+    for (u32 i = 0; i < game->numRoughnessTextures; ++i) {
+        if (strcmp(game->roughnessTextures[i].name, texName) == 0) {
+            texIdx.roughness = i;
+            break;
+        }
+    }
+    return texIdx;
+}
+
+struct TextureIndex FindTextureIdxForMesh(const struct Game *game,
+    const struct MeshTextureMapping *mappings, u32 numMappings,
+    const i8 *meshName, const i32 defaultTexIdx)
 {
     for (u32 i = 0; i < numMappings; ++i) {
         for (u32 j = 0; j < mappings[i].numMeshNames; ++j) {
             if (strcmp(mappings[i].meshNames[j], meshName) == 0) {
-                return mappings[i].texIdx;
+                return FindTextureIndices(game, mappings[i].textureName);
             }
         }
     }
-    return defaultTexIdx;
+
+    struct TextureIndex idx = { defaultTexIdx, defaultTexIdx, defaultTexIdx };
+    return idx;
 }
