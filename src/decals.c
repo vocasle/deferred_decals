@@ -993,19 +993,19 @@ struct TextureIndex FindTextureIndices(const struct Game *game,
 {
     struct TextureIndex texIdx = { 0 };
     for (u32 i = 0; i < game->numAlbedoTextures; ++i) {
-        if (strcmp(game->albedoTextures[i].name, texName) == 0) {
+        if (strstr(game->albedoTextures[i].name, texName)) {
             texIdx.albedo = i;
             break;
         }
     }
     for (u32 i = 0; i < game->numNormalTextures; ++i) {
-        if (strcmp(game->normalTextures[i].name, texName) == 0) {
+        if (strstr(game->normalTextures[i].name, texName) == 0) {
             texIdx.normal = i;
             break;
         }
     }
     for (u32 i = 0; i < game->numRoughnessTextures; ++i) {
-        if (strcmp(game->roughnessTextures[i].name, texName) == 0) {
+        if (strstr(game->roughnessTextures[i].name, texName) == 0) {
             texIdx.roughness = i;
             break;
         }

@@ -535,8 +535,8 @@ void Texture2D_Load(struct Texture2D *t, const i8 *texPath, i32 internalFormat,
 		exit(-1);
 	}
 
-	const i32 loc = UtilsStrFindLastChar(texPath, '/');
-	t->name = strdup(texPath + loc + 1);
+	// const i32 loc = UtilsStrFindLastChar(texPath, '/');
+	t->name = strdup(texPath/* + loc + 1*/);
 
 	UtilsDebugPrint("Loaded %s: %dx%d, channels: %d", t->name, t->width, t->height,
 			channelsInFile);
