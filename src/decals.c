@@ -77,12 +77,6 @@ struct MeshTextureMapping {
     const i8 *textureName;
 };
 
-struct TextureIndex {
-    u32 albedo;
-    u32 normal;
-    u32 roughness;
-};
-
 struct Game {
     struct GBuffer gbuffer;
     struct FramebufferSize framebufferSize;
@@ -90,9 +84,7 @@ struct Game {
     struct Texture2D *albedoTextures;
     struct Texture2D *normalTextures;
     struct Texture2D *roughnessTextures;
-    u32 numAlbedoTextures;
-    u32 numNormalTextures;
-    u32 numRoughnessTextures;
+    u32 numTextures;
     struct Camera camera;
     struct nk_glfw nuklear;
     struct Material **materials;
@@ -137,9 +129,9 @@ i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth,
 
 struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name);
 
-struct TextureIndex FindTextureIdxForMesh(const struct Game *game,
+i32 FindTextureIdxForMesh(const struct Game *game,
     const struct MeshTextureMapping *mappings, u32 numMappings,
-    const i8 *meshName, const i32 defaultTexIdx);
+    const i8 *meshName);
 
 i32 main(void)
 {
@@ -187,7 +179,7 @@ i32 main(void)
         {
             .meshNames = {"WallRight", "WallLeft", "WallBack"},
             .numMeshNames = 3,
-            .textureName = "Mud"
+            .textureName = "art-deco"
         },
         {
             .meshNames = {"Cone", "Cube", "Icosphere"},
@@ -197,7 +189,7 @@ i32 main(void)
         {
             .meshNames = {"Floor"},
             .numMeshNames = 1,
-            .textureName = "Ground"
+            .textureName = "smooth-temple-blocks"
         },
         {
             .meshNames = {"Decal0"},
@@ -247,15 +239,15 @@ i32 main(void)
 
                 const struct ModelProxy *room = game->models[0];
                 for (u32 i = 0; i < room->numMeshes; ++i) {
-                    const struct TextureIndex texIdx = FindTextureIdxForMesh(
+                    const i32 texIdx = FindTextureIdxForMesh(
                         game, textureMappings, ARRAY_COUNT(textureMappings),
-                        room->meshes[i].name, C_DEFAULT_TEX_IDX);
+                        room->meshes[i].name);
                     Material_SetTexture(m, "g_albedoTex",
-                        &game->albedoTextures[texIdx.albedo]);
+                        &game->albedoTextures[texIdx]);
                     Material_SetTexture(m, "g_normalTex",
-                        &game->normalTextures[texIdx.normal]);
+                        &game->normalTextures[texIdx]);
                     Material_SetTexture(m, "g_roughnessTex",
-                        &game->roughnessTextures[texIdx.roughness]);
+                        &game->roughnessTextures[texIdx]);
 
                     GLCHECK(glBindVertexArray(room->meshes[i].vao));
                     Material_SetUniform(m, "g_world", sizeof(Mat4X4),
@@ -332,14 +324,14 @@ i32 main(void)
                             &decalWorlds[n], UT_MAT4);
                         Material_SetUniform(m, "g_decalInvWorld",
                             sizeof(Mat4X4), &decalInvWorlds[n], UT_MAT4);
-                        const struct TextureIndex texIdx = 
+                        const i32 texIdx = 
                             FindTextureIdxForMesh(game, textureMappings,
                                 ARRAY_COUNT(textureMappings),
-                            UtilsFormatStr("Decal%d", n), C_DEFAULT_TEX_IDX);
+                            UtilsFormatStr("Decal%d", n));
                         Material_SetTexture(m, "g_albedo",
-                            &game->albedoTextures[texIdx.albedo]);
+                            &game->albedoTextures[texIdx]);
                         Material_SetTexture(m, "g_normal",
-                            &game->normalTextures[texIdx.normal]);
+                            &game->normalTextures[texIdx]);
                         GLCHECK(glDrawElements(GL_TRIANGLES,
                             unitCube->meshes[i].numIndices, GL_UNSIGNED_INT,
                             NULL));
@@ -910,64 +902,55 @@ struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name)
 
 void LoadTextures(struct Game *game)
 {
-    const i8 *C_ALBEDO_SUFFIX = "albedo";
-    const i8 *C_NORMAL_SUFFIX = "normal";
-    const i8 *C_ROUGHNESS_SUFFIX = "roughness";
+    const i8 *albedoTexturePaths[] = {
+        RES_HOME"/assets/Bricks/albedo.png",
+        RES_HOME"/assets/Default/albedo.png",
+        RES_HOME"/assets/smooth-temple-blocks/albedo.png",
+        RES_HOME"/assets/art-deco/albedo.png",
+        RES_HOME"/assets/RustyMetal/albedo.png",
+    };
 
-    u32 numAlbedoTextures = 0;
-    u32 numNormalTextures = 0;
-    u32 numRoughnessTextures = 0;
+    const i8 *normalTexturePaths[] = {
+        RES_HOME"/assets/Bricks/normal.png",
+        RES_HOME"/assets/Default/normal.png",
+        RES_HOME"/assets/smooth-temple-blocks/normal.png",
+        RES_HOME"/assets/art-deco/normal.png",
+        RES_HOME"/assets/RustyMetal/normal.png",
+    };
 
-    struct UtilsFileArray *assets = UtilsFileUtilsWalkDirectory(RES_HOME"/assets");
-    for (u32 i = 0; i < assets->numFiles; ++i) {
-        if (strstr(assets->files[i].name, C_ALBEDO_SUFFIX)) {
-            numAlbedoTextures++;
-        }
-        else if (strstr(assets->files[i].name, C_NORMAL_SUFFIX)) {
-            numNormalTextures++;
-        }
-        else if (strstr(assets->files[i].name, C_ROUGHNESS_SUFFIX)) {
-            numRoughnessTextures++;
-        }
-    }
+    const i8 *roughnessTexturePaths[] = {
+        RES_HOME"/assets/Bricks/roughness.png",
+        RES_HOME"/assets/Default/roughness.png",
+        RES_HOME"/assets/smooth-temple-blocks/roughness.png",
+        RES_HOME"/assets/art-deco/roughness.png",
+        RES_HOME"/assets/RustyMetal/roughness.png",
+    };
+
+    game->numTextures = ARRAY_COUNT(albedoTexturePaths);
 
     game->albedoTextures = malloc(sizeof *game->albedoTextures *
-        numAlbedoTextures);
+        game->numTextures);
     ZERO_MEMORY_SZ(game->albedoTextures, sizeof *game->albedoTextures *
-        numAlbedoTextures);
+        game->numTextures);
     game->roughnessTextures = malloc(sizeof *game->roughnessTextures *
-        numRoughnessTextures);
+        game->numTextures);
     ZERO_MEMORY_SZ(game->roughnessTextures, sizeof *game->roughnessTextures *
-        numRoughnessTextures);
+        game->numTextures);
     game->normalTextures = malloc(sizeof *game->normalTextures *
-        numNormalTextures);
+        game->numTextures);
     ZERO_MEMORY_SZ(game->normalTextures, sizeof *game->normalTextures *
-        numNormalTextures);
-    
+        game->numTextures);
+
     stbi_set_flip_vertically_on_load(TRUE);
 
-    for (u32 i = 0; i < assets->numFiles; ++i) {
-        if (strstr(assets->files[i].name, C_ALBEDO_SUFFIX)) {
-            Texture2D_Load(game->albedoTextures + game->numAlbedoTextures,
-                assets->files[i].name, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-            game->numAlbedoTextures++;
-        }
-        else if (strstr(assets->files[i].name, C_NORMAL_SUFFIX)) {
-            Texture2D_Load(game->normalTextures + game->numNormalTextures,
-                assets->files[i].name, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-            game->numNormalTextures++;
-        }
-        else if (strstr(assets->files[i].name, C_ROUGHNESS_SUFFIX)) {
-            Texture2D_Load(game->roughnessTextures + game->numRoughnessTextures,
-                assets->files[i].name, GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
-            game->numRoughnessTextures++;
-        }
+    for (u32 i = 0; i < game->numTextures; ++i) {
+        Texture2D_Load(game->roughnessTextures + i, roughnessTexturePaths[i],
+            GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+        Texture2D_Load(game->normalTextures + i, normalTexturePaths[i],
+            GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+        Texture2D_Load(game->albedoTextures + i, albedoTexturePaths[i],
+            GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
     }
-
-    UtilsFileArray_Destroy(assets);
-    ASSERT(game->numAlbedoTextures == numAlbedoTextures);
-    ASSERT(game->numNormalTextures == numNormalTextures);
-    ASSERT(game->numRoughnessTextures == numRoughnessTextures);
 }
 
 struct Game *Game_Create(void)
@@ -988,43 +971,23 @@ struct Game *Game_Create(void)
     return game;
 }
 
-struct TextureIndex FindTextureIndices(const struct Game *game,
-    const i8 *texName)
-{
-    struct TextureIndex texIdx = { 0 };
-    for (u32 i = 0; i < game->numAlbedoTextures; ++i) {
-        if (strstr(game->albedoTextures[i].name, texName)) {
-            texIdx.albedo = i;
-            break;
-        }
-    }
-    for (u32 i = 0; i < game->numNormalTextures; ++i) {
-        if (strstr(game->normalTextures[i].name, texName) == 0) {
-            texIdx.normal = i;
-            break;
-        }
-    }
-    for (u32 i = 0; i < game->numRoughnessTextures; ++i) {
-        if (strstr(game->roughnessTextures[i].name, texName) == 0) {
-            texIdx.roughness = i;
-            break;
-        }
-    }
-    return texIdx;
-}
-
-struct TextureIndex FindTextureIdxForMesh(const struct Game *game,
+i32 FindTextureIdxForMesh(const struct Game *game,
     const struct MeshTextureMapping *mappings, u32 numMappings,
-    const i8 *meshName, const i32 defaultTexIdx)
+    const i8 *meshName)
 {
     for (u32 i = 0; i < numMappings; ++i) {
         for (u32 j = 0; j < mappings[i].numMeshNames; ++j) {
-            if (strcmp(mappings[i].meshNames[j], meshName) == 0) {
-                return FindTextureIndices(game, mappings[i].textureName);
+            if (strcmp(mappings[i].meshNames[j], meshName) != 0) {
+                continue;
+            }
+            for (u32 k = 0; k < game->numTextures; ++k) {
+                if (strstr(game->albedoTextures[k].name, 
+                    mappings[i].textureName)) {
+                    return (i32)k;
+                }
             }
         }
     }
-
-    struct TextureIndex idx = { defaultTexIdx, defaultTexIdx, defaultTexIdx };
-    return idx;
+    UtilsFatalError("ERROR: Failed to find textures for mesh %s", meshName);
+    return -1;
 }
