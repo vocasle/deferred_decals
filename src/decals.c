@@ -268,18 +268,15 @@ i32 main(void)
                 glCullFace(GL_FRONT);
                 // Copy gbuffer depth
                 {
-                    PushRenderPassAnnotation("Copy GBuffer Depth");
                     GLCHECK(glBindTexture(GL_TEXTURE_2D,
                         game->gbuffer.depthTex.handle));
                     GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,
                             game->framebufferSize.width,
                             game->framebufferSize.height));
                     GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
-                    PopRenderPassAnnotation();
                 }
                 // Copy gbuffer normal
                 {
-                    PushRenderPassAnnotation("Copy GBuffer Normal");
                     GLCHECK(glNamedFramebufferReadBuffer(game->gbuffer.framebuffer,
                         GL_COLOR_ATTACHMENT1));
                     GLCHECK(glBindTexture(GL_TEXTURE_2D,
@@ -288,7 +285,6 @@ i32 main(void)
                             game->framebufferSize.width,
                             game->framebufferSize.height));
                     GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
-                    PopRenderPassAnnotation();
                 }
                 const struct ModelProxy *unitCube = game->models[1];
                 for (u32 i = 0; i < unitCube->numMeshes; ++i) {

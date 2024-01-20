@@ -220,6 +220,7 @@ struct UtilsFileArray *UtilsFileUtilsWalkDirectory(const char *directory)
     DirectoryStack_Destroy(stack);
     return arr;
 #else
-    #error Not implemented for current platform!
+    UtilsFatalError("FATAL ERROR: Not implemented for current platform");
+    return NULL;
 #endif
 }
