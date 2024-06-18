@@ -1,5 +1,5 @@
-#include <GLFW/glfw3.h>
 #include <glad/gl.h>
+#include <GLFW/glfw3.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -814,7 +814,9 @@ InitGLFW(i32 width, i32 height, const i8 *title)
     GLFWwindow *window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (!window) {
         glfwTerminate();
-        UtilsFatalError("FATAL ERROR: Failed to create window");
+	const i8 *errMsg = NULL;
+	glfwGetError(&errMsg);
+        UtilsFatalError("FATAL ERROR: Failed to create window. %s", errMsg);
     }
 
     /* Make the window's context current */
