@@ -263,8 +263,7 @@ main(void)
                 }
                 // Copy gbuffer normal
                 {
-                    GLCHECK(glNamedFramebufferReadBuffer(
-                        game->gbuffer.framebuffer, GL_COLOR_ATTACHMENT1));
+                    GLCHECK(glReadBuffer(GL_COLOR_ATTACHMENT1));
                     GLCHECK(glBindTexture(GL_TEXTURE_2D,
                                           game->gbuffer.normalCopyTex.handle));
                     GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,
@@ -806,8 +805,8 @@ InitGLFW(i32 width, i32 height, const i8 *title)
         UtilsFatalError("FATAL ERROR: Failed to initialize GLFW");
     }
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     /* Create a windowed mode window and its OpenGL context */
