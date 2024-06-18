@@ -7,6 +7,10 @@
 #include <mikktspace.h>
 #include <stb_image.h>
 
+#if unix
+#include <signal.h>
+#endif
+
 struct File {
 	i8 *contents;
 	uint64_t size;
