@@ -1,12 +1,12 @@
-#include <glad/gl.h>
 #include <GLFW/glfw3.h>
+#include <glad/gl.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include "myutils.h"
-#include "mymath.h"
 #include "defines.h"
+#include "mymath.h"
+#include "myutils.h"
 #include "renderer.h"
 
 #define NK_INCLUDE_FIXED_TYPES
@@ -26,8 +26,8 @@
 #define MAX_ELEMENT_BUFFER 128 * 1024
 
 #if _WIN32 // Force descrete GPU on Windows
-    __declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
-    __declspec(dllexport) i32 AmdPowerXpressRequestHighPerformance = 1;
+__declspec(dllexport) unsigned long NvOptimusEnablement = 0x00000001;
+__declspec(dllexport) i32 AmdPowerXpressRequestHighPerformance = 1;
 #endif
 
 struct Transform {
@@ -102,38 +102,40 @@ void RenderQuad(const struct FullscreenQuadPass *fsqPass);
 
 void InitQuadPass(struct FullscreenQuadPass *fsqPass);
 
-void ProcessInput(GLFWwindow* window);
+void ProcessInput(GLFWwindow *window);
 
-void Camera_Init(struct Camera *camera, const Vec3D *position,
-        f32 fov, f32 aspectRatio, f32 zNear, f32 zFar);
+void Camera_Init(struct Camera *camera, const Vec3D *position, f32 fov,
+                 f32 aspectRatio, f32 zNear, f32 zFar);
 
 void Game_Update(struct Game *game);
 
-void PushRenderPassAnnotation(const i8* passName);
+void PushRenderPassAnnotation(const i8 *passName);
 
 void PopRenderPassAnnotation(void);
 
 void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,
-               const struct Transform *decalTransforms, u32 numDecals);
+                           const struct Transform *decalTransforms,
+                           u32 numDecals);
 
 void InitNuklear(GLFWwindow *window);
 
-void DeinitNuklear(GLFWwindow* window);
+void DeinitNuklear(GLFWwindow *window);
 
 void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
-    GLenum severity, GLsizei length, const GLchar* message,
-    const void* userParam);
+                                GLenum severity, GLsizei length,
+                                const GLchar *message, const void *userParam);
 
 i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth,
-    const i32 fbHeight);
+                const i32 fbHeight);
 
 struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name);
 
 i32 FindTextureIdxForMesh(const struct Game *game,
-    const struct MeshTextureMapping *mappings, u32 numMappings,
-    const i8 *meshName);
+                          const struct MeshTextureMapping *mappings,
+                          u32 numMappings, const i8 *meshName);
 
-i32 main(void)
+i32
+main(void)
 {
     struct Game *game = Game_Create();
 
@@ -146,62 +148,46 @@ i32 main(void)
 
     Mat4X4 decalWorlds[2] = { 0 };
     Mat4X4 decalInvWorlds[2] = { 0 };
-    struct Transform decalTransforms[] = {
-        {
-            .scale = {2.0f, 2.0f, 2.0f},
-            .translation.Y = 2.0f
-        },
-        {
-            .scale = {2.0f, 2.0f, 2.0f},
-            .translation = {2.0f, 5.0f, -9.0f},
-            .rotation.X = 90.0f
-        }
-    };
-    UpdateDecalTransforms(decalWorlds, decalInvWorlds,
-        decalTransforms, ARRAY_COUNT(decalTransforms));
+    struct Transform decalTransforms[]
+        = { { .scale = { 2.0f, 2.0f, 2.0f }, .translation.Y = 2.0f },
+            { .scale = { 2.0f, 2.0f, 2.0f },
+              .translation = { 2.0f, 5.0f, -9.0f },
+              .rotation.X = 90.0f } };
+    UpdateDecalTransforms(decalWorlds, decalInvWorlds, decalTransforms,
+                          ARRAY_COUNT(decalTransforms));
 
     const Vec3D eyePos = { 4.633266f, 9.594514f, 6.876969f };
     const f32 zNear = 0.1f;
     const f32 zFar = 1000.0f;
     Camera_Init(&game->camera, &eyePos, MathToRadians(90.0f),
-        (f32)game->framebufferSize.width / (f32)game->framebufferSize.height,
-        zNear, zFar);
+                (f32)game->framebufferSize.width
+                    / (f32)game->framebufferSize.height,
+                zNear, zFar);
 
     const Vec3D g_lightPos = { 0.0, 10.0, 0.0 };
 
     InitGBuffer(&game->gbuffer, game->framebufferSize.width,
-        game->framebufferSize.height);
+                game->framebufferSize.height);
 
     struct FullscreenQuadPass fsqPass = { 0 };
     InitQuadPass(&fsqPass);
 
-    const struct MeshTextureMapping textureMappings[] = {
-        {
-            .meshNames = {"WallRight", "WallLeft", "WallBack"},
-            .numMeshNames = 3,
-            .textureName = "art-deco"
-        },
-        {
-            .meshNames = {"Cone", "Cube", "Icosphere"},
-            .numMeshNames = 3,
-            .textureName = "Default"
-        },
-        {
-            .meshNames = {"Floor"},
-            .numMeshNames = 1,
-            .textureName = "smooth-temple-blocks"
-        },
-        {
-            .meshNames = {"Decal0"},
-            .numMeshNames = 1,
-            .textureName = "RustyMetal"
-        },
-        {
-            .meshNames = {"Decal1"},
-            .numMeshNames = 1,
-            .textureName = "Bricks"
-        }
-    };
+    const struct MeshTextureMapping textureMappings[]
+        = { { .meshNames = { "WallRight", "WallLeft", "WallBack" },
+              .numMeshNames = 3,
+              .textureName = "art-deco" },
+            { .meshNames = { "Cone", "Cube", "Icosphere" },
+              .numMeshNames = 3,
+              .textureName = "Default" },
+            { .meshNames = { "Floor" },
+              .numMeshNames = 1,
+              .textureName = "smooth-temple-blocks" },
+            { .meshNames = { "Decal0" },
+              .numMeshNames = 1,
+              .textureName = "RustyMetal" },
+            { .meshNames = { "Decal1" },
+              .numMeshNames = 1,
+              .textureName = "Bricks" } };
 
     const i32 C_DEFAULT_TEX_IDX = 0;
 
@@ -212,8 +198,7 @@ i32 main(void)
     InitNuklear(game->window);
 
     /* Loop until the user closes the window */
-    while(!glfwWindowShouldClose(game->window))
-    {
+    while (!glfwWindowShouldClose(game->window)) {
         nk_glfw3_new_frame(&game->nuklear);
         ProcessInput(game->window);
         Game_Update(game);
@@ -224,18 +209,18 @@ i32 main(void)
                 PushRenderPassAnnotation("Geometry Pass");
                 struct Material *m = Game_FindMaterialByName(game, "GBuffer");
                 GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER,
-                    game->gbuffer.framebuffer));
+                                          game->gbuffer.framebuffer));
                 GLCHECK(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
                 GLCHECK(glUseProgram(Material_GetHandle(m)));
 
                 Material_SetUniform(m, "g_view", sizeof(Mat4X4),
-                    &game->camera.view, UT_MAT4);
+                                    &game->camera.view, UT_MAT4);
                 Material_SetUniform(m, "g_proj", sizeof(Mat4X4),
-                    &game->camera.proj, UT_MAT4);
+                                    &game->camera.proj, UT_MAT4);
                 Material_SetUniform(m, "g_lightPos", sizeof(Vec3D),
-                    &g_lightPos, UT_VEC3F);
-                Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D),
-                    &eyePos, UT_VEC3F);
+                                    &g_lightPos, UT_VEC3F);
+                Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos,
+                                    UT_VEC3F);
 
                 const struct ModelProxy *room = game->models[0];
                 for (u32 i = 0; i < room->numMeshes; ++i) {
@@ -243,17 +228,18 @@ i32 main(void)
                         game, textureMappings, ARRAY_COUNT(textureMappings),
                         room->meshes[i].name);
                     Material_SetTexture(m, "g_albedoTex",
-                        &game->albedoTextures[texIdx]);
+                                        &game->albedoTextures[texIdx]);
                     Material_SetTexture(m, "g_normalTex",
-                        &game->normalTextures[texIdx]);
+                                        &game->normalTextures[texIdx]);
                     Material_SetTexture(m, "g_roughnessTex",
-                        &game->roughnessTextures[texIdx]);
+                                        &game->roughnessTextures[texIdx]);
 
                     GLCHECK(glBindVertexArray(room->meshes[i].vao));
                     Material_SetUniform(m, "g_world", sizeof(Mat4X4),
-                        &room->meshes[i].world, UT_MAT4);
+                                        &room->meshes[i].world, UT_MAT4);
                     GLCHECK(glDrawElements(GL_TRIANGLES,
-                        room->meshes[i].numIndices, GL_UNSIGNED_INT, NULL));
+                                           room->meshes[i].numIndices,
+                                           GL_UNSIGNED_INT, NULL));
                 }
                 PopRenderPassAnnotation();
             }
@@ -269,21 +255,21 @@ i32 main(void)
                 // Copy gbuffer depth
                 {
                     GLCHECK(glBindTexture(GL_TEXTURE_2D,
-                        game->gbuffer.depthTex.handle));
+                                          game->gbuffer.depthTex.handle));
                     GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,
-                            game->framebufferSize.width,
-                            game->framebufferSize.height));
+                                                game->framebufferSize.width,
+                                                game->framebufferSize.height));
                     GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
                 }
                 // Copy gbuffer normal
                 {
-                    GLCHECK(glNamedFramebufferReadBuffer(game->gbuffer.framebuffer,
-                        GL_COLOR_ATTACHMENT1));
+                    GLCHECK(glNamedFramebufferReadBuffer(
+                        game->gbuffer.framebuffer, GL_COLOR_ATTACHMENT1));
                     GLCHECK(glBindTexture(GL_TEXTURE_2D,
-                        game->gbuffer.normalCopyTex.handle));
+                                          game->gbuffer.normalCopyTex.handle));
                     GLCHECK(glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0,
-                            game->framebufferSize.width,
-                            game->framebufferSize.height));
+                                                game->framebufferSize.width,
+                                                game->framebufferSize.height));
                     GLCHECK(glBindTexture(GL_TEXTURE_2D, 0));
                 }
                 const struct ModelProxy *unitCube = game->models[1];
@@ -291,46 +277,48 @@ i32 main(void)
                     GLCHECK(glUseProgram(Material_GetHandle(m)));
                     Material_SetTexture(m, "g_depth", &game->gbuffer.depthTex);
                     Material_SetTexture(m, "g_gbufferNormal",
-                        &game->gbuffer.normalCopyTex);
+                                        &game->gbuffer.normalCopyTex);
                     const Mat4X4 viewProj = MathMat4X4MultMat4X4ByMat4X4(
                         &game->camera.view, &game->camera.proj);
                     const Mat4X4 invViewProj = MathMat4X4Inverse(&viewProj);
-                    const Vec4D rtSize = { (float)game->framebufferSize.width,
-                        (float)game->framebufferSize.height,
-                        1.0f / game->framebufferSize.width,
-                        1.0f / game->framebufferSize.height };
+                    const Vec4D rtSize
+                        = { (float)game->framebufferSize.width,
+                            (float)game->framebufferSize.height,
+                            1.0f / game->framebufferSize.width,
+                            1.0f / game->framebufferSize.height };
 
                     Material_SetUniform(m, "g_lightPos", sizeof(Vec3D),
-                        &g_lightPos, UT_VEC3F);
-                    Material_SetUniform(m, "g_rtSize", sizeof(Vec4D),
-                        &rtSize, UT_VEC4F);
+                                        &g_lightPos, UT_VEC3F);
+                    Material_SetUniform(m, "g_rtSize", sizeof(Vec4D), &rtSize,
+                                        UT_VEC4F);
                     Material_SetUniform(m, "g_view", sizeof(Mat4X4),
-                        &game->camera.view, UT_MAT4);
+                                        &game->camera.view, UT_MAT4);
                     Material_SetUniform(m, "g_proj", sizeof(Mat4X4),
-                        &game->camera.proj, UT_MAT4);
+                                        &game->camera.proj, UT_MAT4);
                     Material_SetUniform(m, "g_invViewProj", sizeof(Mat4X4),
-                        &invViewProj, UT_MAT4);
+                                        &invViewProj, UT_MAT4);
                     Material_SetUniform(m, "g_lightPos", sizeof(Vec3D),
-                        &g_lightPos, UT_VEC3F);
+                                        &g_lightPos, UT_VEC3F);
                     Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D),
-                        &eyePos, UT_VEC3F);
+                                        &eyePos, UT_VEC3F);
                     GLCHECK(glBindVertexArray(unitCube->meshes[i].vao));
                     for (u32 n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
                         Material_SetUniform(m, "g_world", sizeof(Mat4X4),
-                            &decalWorlds[n], UT_MAT4);
+                                            &decalWorlds[n], UT_MAT4);
                         Material_SetUniform(m, "g_decalInvWorld",
-                            sizeof(Mat4X4), &decalInvWorlds[n], UT_MAT4);
-                        const i32 texIdx = 
-                            FindTextureIdxForMesh(game, textureMappings,
-                                ARRAY_COUNT(textureMappings),
+                                            sizeof(Mat4X4), &decalInvWorlds[n],
+                                            UT_MAT4);
+                        const i32 texIdx = FindTextureIdxForMesh(
+                            game, textureMappings,
+                            ARRAY_COUNT(textureMappings),
                             UtilsFormatStr("Decal%d", n));
                         Material_SetTexture(m, "g_albedo",
-                            &game->albedoTextures[texIdx]);
+                                            &game->albedoTextures[texIdx]);
                         Material_SetTexture(m, "g_normal",
-                            &game->normalTextures[texIdx]);
+                                            &game->normalTextures[texIdx]);
                         GLCHECK(glDrawElements(GL_TRIANGLES,
-                            unitCube->meshes[i].numIndices, GL_UNSIGNED_INT,
-                            NULL));
+                                               unitCube->meshes[i].numIndices,
+                                               GL_UNSIGNED_INT, NULL));
                     }
                 }
                 // Reset state
@@ -354,11 +342,11 @@ i32 main(void)
             Material_SetTexture(m, "g_normal", &game->gbuffer.normalTex);
             Material_SetTexture(m, "g_albedo", &game->gbuffer.albedoTex);
             Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos,
-                UT_VEC3F);
+                                UT_VEC3F);
             Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos,
-                UT_VEC3F);
+                                UT_VEC3F);
             Material_SetUniform(m, "g_gbufferDebugMode", sizeof(i32),
-                    &game->gbufferDebugMode, UT_INT);
+                                &game->gbufferDebugMode, UT_INT);
             RenderQuad(&fsqPass);
             PopRenderPassAnnotation();
         }
@@ -378,9 +366,10 @@ i32 main(void)
             // see to match the default framebuffer's internal format with the
             // FBO's internal format).
             glBlitFramebuffer(0, 0, game->framebufferSize.width,
-                game->framebufferSize.height,
-                0, 0, game->framebufferSize.width,
-                game->framebufferSize.height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+                              game->framebufferSize.height, 0, 0,
+                              game->framebufferSize.width,
+                              game->framebufferSize.height,
+                              GL_DEPTH_BUFFER_BIT, GL_NEAREST);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             PopRenderPassAnnotation();
         }
@@ -391,16 +380,16 @@ i32 main(void)
             struct Material *m = Game_FindMaterialByName(game, "Phong");
             glUseProgram(Material_GetHandle(m));
             Material_SetUniform(m, "g_view", sizeof(Mat4X4),
-                &game->camera.view, UT_MAT4);
+                                &game->camera.view, UT_MAT4);
             Material_SetUniform(m, "g_proj", sizeof(Mat4X4),
-                &game->camera.proj, UT_MAT4);
-            Material_SetUniform(m, "g_lightPos", sizeof(Vec3D),
-                &g_lightPos, UT_VEC3F);
-            Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D),
-                &eyePos, UT_VEC3F);
+                                &game->camera.proj, UT_MAT4);
+            Material_SetUniform(m, "g_lightPos", sizeof(Vec3D), &g_lightPos,
+                                UT_VEC3F);
+            Material_SetUniform(m, "g_cameraPos", sizeof(Vec3D), &eyePos,
+                                UT_VEC3F);
             static const i32 isWireframe = 1;
             Material_SetUniform(m, "g_wireframe", sizeof(i32), &isWireframe,
-                UT_INT);
+                                UT_INT);
 
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             const struct ModelProxy *unitCube = game->models[1];
@@ -408,9 +397,10 @@ i32 main(void)
                 glBindVertexArray(unitCube->meshes[i].vao);
                 for (u32 n = 0; n < ARRAY_COUNT(decalWorlds); ++n) {
                     Material_SetUniform(m, "g_world", sizeof(Mat4X4),
-                        &decalWorlds[n], UT_MAT4);
+                                        &decalWorlds[n], UT_MAT4);
                     glDrawElements(GL_TRIANGLES,
-                        unitCube->meshes[i].numIndices, GL_UNSIGNED_INT, NULL);
+                                   unitCube->meshes[i].numIndices,
+                                   GL_UNSIGNED_INT, NULL);
                 }
             }
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -420,48 +410,58 @@ i32 main(void)
         // GUI Pass
         {
             PushRenderPassAnnotation("Nuklear Pass");
-            struct nk_context* ctx = &game->nuklear.ctx;
+            struct nk_context *ctx = &game->nuklear.ctx;
             if (nk_begin(ctx, "Options", nk_rect(50, 50, 530, 250),
-                NK_WINDOW_BORDER | NK_WINDOW_MOVABLE | NK_WINDOW_SCALABLE |
-                NK_WINDOW_MINIMIZABLE | NK_WINDOW_TITLE))
-            {
+                         NK_WINDOW_BORDER | NK_WINDOW_MOVABLE
+                             | NK_WINDOW_SCALABLE | NK_WINDOW_MINIMIZABLE
+                             | NK_WINDOW_TITLE)) {
                 nk_layout_row_dynamic(ctx, 30, 1);
                 for (u32 i = 0; i < ARRAY_COUNT(decalTransforms); ++i) {
                     nk_label(ctx, UtilsFormatStr("Decal %u:", i),
-                        NK_TEXT_ALIGN_LEFT);
+                             NK_TEXT_ALIGN_LEFT);
                     nk_layout_row_dynamic(ctx, 30, 4);
                     nk_label(ctx, "Translation:", NK_TEXT_ALIGN_LEFT);
                     nk_property_float(ctx, "#X", -10.0f,
-                        &decalTransforms[i].translation.X, 10.0f, 0.1f, 0.0f);
+                                      &decalTransforms[i].translation.X, 10.0f,
+                                      0.1f, 0.0f);
                     nk_property_float(ctx, "#Y", -10.0f,
-                        &decalTransforms[i].translation.Y, 10.0f, 0.1f, 0.0f);
+                                      &decalTransforms[i].translation.Y, 10.0f,
+                                      0.1f, 0.0f);
                     nk_property_float(ctx, "#Z", -10.0f,
-                        &decalTransforms[i].translation.Z, 10.0f, 0.1f, 0.0f);
+                                      &decalTransforms[i].translation.Z, 10.0f,
+                                      0.1f, 0.0f);
                     nk_label(ctx, "Rotation:", NK_TEXT_ALIGN_LEFT);
                     nk_property_float(ctx, "#Pitch", -89.0f,
-                        &decalTransforms[i].rotation.X, 89.0f, 1.0f, 0.0f);
+                                      &decalTransforms[i].rotation.X, 89.0f,
+                                      1.0f, 0.0f);
                     nk_property_float(ctx, "#Yaw", -180.0f,
-                        &decalTransforms[i].rotation.Y, 180.0f, 1.0f, 0.0f);
+                                      &decalTransforms[i].rotation.Y, 180.0f,
+                                      1.0f, 0.0f);
                     nk_property_float(ctx, "#Roll", -89.0f,
-                        &decalTransforms[i].rotation.Z, 89.0f, 1.0f, 0.0f);
+                                      &decalTransforms[i].rotation.Z, 89.0f,
+                                      1.0f, 0.0f);
                     nk_label(ctx, "Scale:", NK_TEXT_ALIGN_LEFT);
                     nk_property_float(ctx, "#X", 1.0f,
-                        &decalTransforms[i].scale.X, 10.0f, 0.5f, 0.0f);
+                                      &decalTransforms[i].scale.X, 10.0f, 0.5f,
+                                      0.0f);
                     nk_property_float(ctx, "#Y", 1.0f,
-                        &decalTransforms[i].scale.Y, 10.0f, 0.5f, 0.0f);
+                                      &decalTransforms[i].scale.Y, 10.0f, 0.5f,
+                                      0.0f);
                     nk_property_float(ctx, "#Z", 1.0f,
-                        &decalTransforms[i].scale.Z, 10.0f, 0.5f, 0.0f);
+                                      &decalTransforms[i].scale.Z, 10.0f, 0.5f,
+                                      0.0f);
                 }
                 if (nk_button_label(ctx, "Apply Transform")) {
                     UpdateDecalTransforms(decalWorlds, decalInvWorlds,
-                        decalTransforms, ARRAY_COUNT(decalTransforms));
+                                          decalTransforms,
+                                          ARRAY_COUNT(decalTransforms));
                 }
                 nk_layout_row_dynamic(ctx, 25, 1);
             }
             nk_end(ctx);
 
             nk_glfw3_render(&game->nuklear, NK_ANTI_ALIASING_ON,
-                MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+                            MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
             glDisable(GL_BLEND);
             glEnable(GL_CULL_FACE);
             glEnable(GL_DEPTH_TEST);
@@ -481,9 +481,8 @@ i32 main(void)
     return 0;
 }
 
-
-void OnFramebufferResize(GLFWwindow *window, i32 width,
-        i32 height)
+void
+OnFramebufferResize(GLFWwindow *window, i32 width, i32 height)
 {
     GLCHECK(glViewport(0, 0, width, height));
     struct Game *game = glfwGetWindowUserPointer(window);
@@ -492,14 +491,13 @@ void OnFramebufferResize(GLFWwindow *window, i32 width,
     InitGBuffer(&game->gbuffer, width, height);
 }
 
-void InitQuadPass(struct FullscreenQuadPass *fsqPass)
+void
+InitQuadPass(struct FullscreenQuadPass *fsqPass)
 {
     const f32 quadVertices[] = {
         // positions        // texture Coords
-        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-         1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-         1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        -1.0f, 1.0f,  0.0f, 0.0f, 1.0f, 1.0f, 1.0f,  0.0f, 1.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
     };
     // setup plane VAO
     GLCHECK(glGenVertexArrays(1, &fsqPass->vao));
@@ -507,103 +505,101 @@ void InitQuadPass(struct FullscreenQuadPass *fsqPass)
     GLCHECK(glBindVertexArray(fsqPass->vao));
     GLCHECK(glBindBuffer(GL_ARRAY_BUFFER, fsqPass->vbo));
     GLCHECK(glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices,
-        GL_STATIC_DRAW));
+                         GL_STATIC_DRAW));
     GLCHECK(glEnableVertexAttribArray(0));
     GLCHECK(glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(f32),
-        (void*)0));
+                                  (void *)0));
     GLCHECK(glEnableVertexAttribArray(1));
     GLCHECK(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(f32),
-        (void*)(3 * sizeof(f32))));
+                                  (void *)(3 * sizeof(f32))));
 }
 
-void RenderQuad(const struct FullscreenQuadPass *fsqPass)
+void
+RenderQuad(const struct FullscreenQuadPass *fsqPass)
 {
     GLCHECK(glBindVertexArray(fsqPass->vao));
     GLCHECK(glDrawArrays(GL_TRIANGLE_STRIP, 0, 4));
     GLCHECK(glBindVertexArray(0));
 }
 
-i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight)
+i32
+InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight)
 {
     GLCHECK(glGenFramebuffers(1, &gbuffer->framebuffer));
     GLCHECK(glBindFramebuffer(GL_FRAMEBUFFER, gbuffer->framebuffer));
 
     {
-        const struct Texture2DCreateInfo info = {
-            .format = GL_DEPTH_COMPONENT,
-            .internalFormat = GL_DEPTH_COMPONENT,
-            .type = GL_UNSIGNED_BYTE,
-            .genFB = TRUE,
-            .framebufferAttachment = GL_DEPTH_ATTACHMENT,
-            .width = fbWidth,
-            .height = fbHeight,
-            .name = "GBuffer.Depth"
-        };
+        const struct Texture2DCreateInfo info
+            = { .format = GL_DEPTH_COMPONENT,
+                .internalFormat = GL_DEPTH_COMPONENT,
+                .type = GL_UNSIGNED_BYTE,
+                .genFB = TRUE,
+                .framebufferAttachment = GL_DEPTH_ATTACHMENT,
+                .width = fbWidth,
+                .height = fbHeight,
+                .name = "GBuffer.Depth" };
         Texture2D_Init(&gbuffer->depthTex, &info);
     }
     {
-        const struct Texture2DCreateInfo info = {
-            .format = GL_RGBA,
-            .internalFormat = GL_RGBA16F,
-            .type = GL_UNSIGNED_BYTE,
-            .genFB = TRUE,
-            .framebufferAttachment = GL_COLOR_ATTACHMENT0,
-            .width = fbWidth,
-            .height = fbHeight,
-            .name = "GBuffer.Position"
-        };
+        const struct Texture2DCreateInfo info
+            = { .format = GL_RGBA,
+                .internalFormat = GL_RGBA16F,
+                .type = GL_UNSIGNED_BYTE,
+                .genFB = TRUE,
+                .framebufferAttachment = GL_COLOR_ATTACHMENT0,
+                .width = fbWidth,
+                .height = fbHeight,
+                .name = "GBuffer.Position" };
         Texture2D_Init(&gbuffer->positionTex, &info);
     }
     {
-        const struct Texture2DCreateInfo info = {
-            .format = GL_RGBA,
-            .internalFormat = GL_RGBA16F,
-            .type = GL_UNSIGNED_BYTE,
-            .genFB = TRUE,
-            .framebufferAttachment = GL_COLOR_ATTACHMENT1,
-            .width = fbWidth,
-            .height = fbHeight,
-            .name = "GBuffer.Normal"
-        };
+        const struct Texture2DCreateInfo info
+            = { .format = GL_RGBA,
+                .internalFormat = GL_RGBA16F,
+                .type = GL_UNSIGNED_BYTE,
+                .genFB = TRUE,
+                .framebufferAttachment = GL_COLOR_ATTACHMENT1,
+                .width = fbWidth,
+                .height = fbHeight,
+                .name = "GBuffer.Normal" };
         Texture2D_Init(&gbuffer->normalTex, &info);
     }
     {
-        const struct Texture2DCreateInfo info = {
-            .format = GL_RGBA,
-            .internalFormat = GL_RGBA,
-            .type = GL_UNSIGNED_BYTE,
-            .genFB = TRUE,
-            .framebufferAttachment = GL_COLOR_ATTACHMENT2,
-            .width = fbWidth,
-            .height = fbHeight,
-            .name = "GBuffer.Albedo"
-        };
+        const struct Texture2DCreateInfo info
+            = { .format = GL_RGBA,
+                .internalFormat = GL_RGBA,
+                .type = GL_UNSIGNED_BYTE,
+                .genFB = TRUE,
+                .framebufferAttachment = GL_COLOR_ATTACHMENT2,
+                .width = fbWidth,
+                .height = fbHeight,
+                .name = "GBuffer.Albedo" };
         Texture2D_Init(&gbuffer->albedoTex, &info);
     }
     {
         // Copy of GBuffer Normal
-        const struct Texture2DCreateInfo info = {
-            .format = GL_RGBA,
-            .internalFormat = GL_RGBA16F,
-            .type = GL_UNSIGNED_BYTE,
-            .genFB = FALSE,
-            .width = fbWidth,
-            .height = fbHeight,
-            .name = "Copy.GBuffer.Normal"
-        };
+        const struct Texture2DCreateInfo info
+            = { .format = GL_RGBA,
+                .internalFormat = GL_RGBA16F,
+                .type = GL_UNSIGNED_BYTE,
+                .genFB = FALSE,
+                .width = fbWidth,
+                .height = fbHeight,
+                .name = "Copy.GBuffer.Normal" };
         Texture2D_Init(&gbuffer->normalCopyTex, &info);
     }
 
-    const u32 attachments[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1,
-        GL_COLOR_ATTACHMENT2 };
+    const u32 attachments[]
+        = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
     GLCHECK(glDrawBuffers(ARRAY_COUNT(attachments), attachments));
 
     GLCHECK(glGenRenderbuffers(1, &gbuffer->depthRenderBuffer));
     GLCHECK(glBindRenderbuffer(GL_RENDERBUFFER, gbuffer->depthRenderBuffer));
-    GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT,
-                fbWidth, fbHeight));
+    GLCHECK(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, fbWidth,
+                                  fbHeight));
     GLCHECK(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-                GL_RENDERBUFFER, gbuffer->depthRenderBuffer));
+                                      GL_RENDERBUFFER,
+                                      gbuffer->depthRenderBuffer));
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         UtilsDebugPrint("ERROR: Failed to create GBuffer framebuffer");
@@ -614,59 +610,53 @@ i32 InitGBuffer(struct GBuffer *gbuffer, const i32 fbWidth, const i32 fbHeight)
     return 1;
 }
 
-i32 IsKeyPressed(GLFWwindow *window, i32 key)
+i32
+IsKeyPressed(GLFWwindow *window, i32 key)
 {
     const i32 state = glfwGetKey(window, key);
     return state == GLFW_PRESS || state == GLFW_REPEAT;
 }
 
-void ProcessInput(GLFWwindow* window)
+void
+ProcessInput(GLFWwindow *window)
 {
     struct Game *game = glfwGetWindowUserPointer(window);
     if (IsKeyPressed(window, GLFW_KEY_ESCAPE)) {
         glfwSetWindowShouldClose(window, 1);
-    }
-    else if (IsKeyPressed(window, GLFW_KEY_R)) {
+    } else if (IsKeyPressed(window, GLFW_KEY_R)) {
         const Vec3D offset = { 0.0f, 1.0f, 0.0f };
-        game->camera.position = MathVec3DAddition(&game->camera.position,
-            &offset);
-    }
-    else if (IsKeyPressed(window, GLFW_KEY_F)) {
+        game->camera.position
+            = MathVec3DAddition(&game->camera.position, &offset);
+    } else if (IsKeyPressed(window, GLFW_KEY_F)) {
         const Vec3D offset = { 0.0f, -1.0f, 0.0f };
-        game->camera.position = MathVec3DAddition(&game->camera.position,
-            &offset);
-    }
-    else if (IsKeyPressed(window, GLFW_KEY_W)) {
-        game->camera.position = MathVec3DAddition(&game->camera.position,
-            &game->camera.front);
-    }
-    else if (IsKeyPressed(window, GLFW_KEY_S)) {
+        game->camera.position
+            = MathVec3DAddition(&game->camera.position, &offset);
+    } else if (IsKeyPressed(window, GLFW_KEY_W)) {
+        game->camera.position
+            = MathVec3DAddition(&game->camera.position, &game->camera.front);
+    } else if (IsKeyPressed(window, GLFW_KEY_S)) {
         game->camera.position = MathVec3DSubtraction(&game->camera.position,
-            &game->camera.front);
-    }
-    else if (IsKeyPressed(window, GLFW_KEY_A)) {
+                                                     &game->camera.front);
+    } else if (IsKeyPressed(window, GLFW_KEY_A)) {
         game->camera.position = MathVec3DSubtraction(&game->camera.position,
-            &game->camera.right);
-    }
-    else if (IsKeyPressed(window, GLFW_KEY_D)) {
-        game->camera.position = MathVec3DAddition(&game->camera.position,
-            &game->camera.right);
-    }
-    else if (IsKeyPressed(window, GLFW_KEY_LEFT)) {
+                                                     &game->camera.right);
+    } else if (IsKeyPressed(window, GLFW_KEY_D)) {
+        game->camera.position
+            = MathVec3DAddition(&game->camera.position, &game->camera.right);
+    } else if (IsKeyPressed(window, GLFW_KEY_LEFT)) {
         const Mat4X4 rotation = MathMat4X4RotateY(MathToRadians(1.0f));
         Vec4D tmp = { game->camera.front.X, game->camera.front.Y,
-            game->camera.front.Z, 0.0f };
+                      game->camera.front.Z, 0.0f };
         tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &rotation);
         game->camera.front.X = tmp.X;
         game->camera.front.Y = tmp.Y;
         game->camera.front.Z = tmp.Z;
         const Vec3D up = { .Y = 1.0f };
         game->camera.right = MathVec3DCross(&up, &game->camera.front);
-    }
-    else if (IsKeyPressed(window, GLFW_KEY_RIGHT)) {
+    } else if (IsKeyPressed(window, GLFW_KEY_RIGHT)) {
         const Mat4X4 rotation = MathMat4X4RotateY(MathToRadians(-1.0f));
         Vec4D tmp = { game->camera.front.X, game->camera.front.Y,
-            game->camera.front.Z, 0.0f };
+                      game->camera.front.Z, 0.0f };
         tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &rotation);
         game->camera.front.X = tmp.X;
         game->camera.front.Y = tmp.Y;
@@ -679,7 +669,7 @@ void ProcessInput(GLFWwindow* window)
     else if (IsKeyPressed(window, GLFW_KEY_UP)) {
         const Mat4X4 rotation = MathMat4X4RotateX(MathToRadians(1.0f));
         Vec4D tmp = { game->camera.front.X, game->camera.front.Y,
-            game->camera.front.Z, 0.0f };
+                      game->camera.front.Z, 0.0f };
         const Mat4X4 invView = MathMat4X4Inverse(&game->camera.view);
         tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &game->camera.view);
         tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &rotation);
@@ -689,12 +679,11 @@ void ProcessInput(GLFWwindow* window)
         game->camera.front.Z = tmp.Z;
         const Vec3D up = { .Y = 1.0f };
         game->camera.right = MathVec3DCross(&up, &game->camera.front);
-    }
-    else if (IsKeyPressed(window, GLFW_KEY_DOWN)) {
+    } else if (IsKeyPressed(window, GLFW_KEY_DOWN)) {
         const Mat4X4 invView = MathMat4X4Inverse(&game->camera.view);
         const Mat4X4 rotation = MathMat4X4RotateX(MathToRadians(-1.0f));
         Vec4D tmp = { game->camera.front.X, game->camera.front.Y,
-            game->camera.front.Z, 0.0f };
+                      game->camera.front.Z, 0.0f };
 
         // Move front vector from world space to camera
         tmp = MathMat4X4MultVec4DByMat4X4(&tmp, &game->camera.view);
@@ -709,8 +698,9 @@ void ProcessInput(GLFWwindow* window)
     }
 }
 
-void Camera_Init(struct Camera *camera, const Vec3D *position,
-        f32 fov, f32 aspectRatio, f32 zNear, f32 zFar)
+void
+Camera_Init(struct Camera *camera, const Vec3D *position, f32 fov,
+            f32 aspectRatio, f32 zNear, f32 zFar)
 {
     const Vec3D front = { -0.390251f, -0.463592f, -0.795480f };
     const Vec3D up = { 0.0f, 1.0f, 0.0f };
@@ -723,27 +713,31 @@ void Camera_Init(struct Camera *camera, const Vec3D *position,
     camera->view = MathMat4X4ViewAt(&camera->position, &focusPos, &up);
 }
 
-void Game_Update(struct Game *game)
+void
+Game_Update(struct Game *game)
 {
-    const Vec3D focusPos = MathVec3DAddition(&game->camera.position,
-        &game->camera.front);
+    const Vec3D focusPos
+        = MathVec3DAddition(&game->camera.position, &game->camera.front);
     const Vec3D up = { 0.0f, 1.0f, 0.0f };
-    game->camera.view = MathMat4X4ViewAt(&game->camera.position, &focusPos,
-        &up);
+    game->camera.view
+        = MathMat4X4ViewAt(&game->camera.position, &focusPos, &up);
 }
 
-void PushRenderPassAnnotation(const i8* passName)
+void
+PushRenderPassAnnotation(const i8 *passName)
 {
     GLCHECK(glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0,
-        (i32)strlen(passName), passName));
+                             (i32)strlen(passName), passName));
 }
 
-void PopRenderPassAnnotation(void)
+void
+PopRenderPassAnnotation(void)
 {
     GLCHECK(glPopDebugGroup());
 }
 
-Mat4X4 TransformToMat4X4(const struct Transform *t)
+Mat4X4
+TransformToMat4X4(const struct Transform *t)
 {
     const Mat4X4 translation = MathMat4X4TranslateFromVec3D(&t->translation);
     const Mat4X4 rotation = MathMat4X4RotateFromVec3D(&t->rotation);
@@ -753,54 +747,60 @@ Mat4X4 TransformToMat4X4(const struct Transform *t)
     return ret;
 }
 
-void UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,
-               const struct Transform *decalTransforms, u32 numDecals)
+void
+UpdateDecalTransforms(Mat4X4 *decalWorlds, Mat4X4 *decalInvWorlds,
+                      const struct Transform *decalTransforms, u32 numDecals)
 {
-  for (u32 i = 0; i < numDecals; ++i) {
-    const Mat4X4 translation = MathMat4X4TranslateFromVec3D(
-        &decalTransforms[i].translation);
-    const Vec3D angles = {MathToRadians(decalTransforms[i].rotation.X),
-      MathToRadians(decalTransforms[i].rotation.Y),
-      MathToRadians(decalTransforms[i].rotation.Z)};
-    const Mat4X4 rotation = MathMat4X4RotateFromVec3D(&angles);
-    const Mat4X4 scale = MathMat4X4ScaleFromVec3D(&decalTransforms[i].scale);
-    Mat4X4 world = MathMat4X4MultMat4X4ByMat4X4(&scale, &rotation);
-    world = MathMat4X4MultMat4X4ByMat4X4(&world, &translation);
-    decalWorlds[i] = world;
-    decalInvWorlds[i] = MathMat4X4Inverse(&decalWorlds[i]);
-  }
+    for (u32 i = 0; i < numDecals; ++i) {
+        const Mat4X4 translation
+            = MathMat4X4TranslateFromVec3D(&decalTransforms[i].translation);
+        const Vec3D angles = { MathToRadians(decalTransforms[i].rotation.X),
+                               MathToRadians(decalTransforms[i].rotation.Y),
+                               MathToRadians(decalTransforms[i].rotation.Z) };
+        const Mat4X4 rotation = MathMat4X4RotateFromVec3D(&angles);
+        const Mat4X4 scale
+            = MathMat4X4ScaleFromVec3D(&decalTransforms[i].scale);
+        Mat4X4 world = MathMat4X4MultMat4X4ByMat4X4(&scale, &rotation);
+        world = MathMat4X4MultMat4X4ByMat4X4(&world, &translation);
+        decalWorlds[i] = world;
+        decalInvWorlds[i] = MathMat4X4Inverse(&decalWorlds[i]);
+    }
 }
 
-struct nk_glfw *GetNuklearGLFW(GLFWwindow *w)
+struct nk_glfw *
+GetNuklearGLFW(GLFWwindow *w)
 {
-  struct Game *game = glfwGetWindowUserPointer(w);
-  return &game->nuklear;
+    struct Game *game = glfwGetWindowUserPointer(w);
+    return &game->nuklear;
 }
 
-void InitNuklear(GLFWwindow *window)
+void
+InitNuklear(GLFWwindow *window)
 {
-    struct Game* game = glfwGetWindowUserPointer(window);
+    struct Game *game = glfwGetWindowUserPointer(window);
     nk_glfw3_init(&game->nuklear, window, NK_GLFW3_INSTALL_CALLBACKS);
     {
-        struct nk_font_atlas* atlas = NULL;
+        struct nk_font_atlas *atlas = NULL;
         nk_glfw3_font_stash_begin(&game->nuklear, &atlas);
 
-        struct nk_font *droid = nk_font_atlas_add_from_file(atlas,
-            UtilsFormatStr("%s/%s", RES_HOME, "fonts/DroidSans.ttf"), 22, 0);
+        struct nk_font *droid = nk_font_atlas_add_from_file(
+            atlas, UtilsFormatStr("%s/%s", RES_HOME, "fonts/DroidSans.ttf"),
+            22, 0);
         nk_glfw3_font_stash_end(&game->nuklear);
         nk_style_load_all_cursors(&game->nuklear.ctx, atlas->cursors);
         nk_style_set_font(&game->nuklear.ctx, &droid->handle);
     }
-
 }
 
-void DeinitNuklear(GLFWwindow* window)
+void
+DeinitNuklear(GLFWwindow *window)
 {
-    struct Game* game = glfwGetWindowUserPointer(window);
+    struct Game *game = glfwGetWindowUserPointer(window);
     nk_glfw3_shutdown(&game->nuklear);
 }
 
-GLFWwindow *InitGLFW(i32 width, i32 height, const i8 *title)
+GLFWwindow *
+InitGLFW(i32 width, i32 height, const i8 *title)
 {
     if (!glfwInit()) {
         UtilsFatalError("FATAL ERROR: Failed to initialize GLFW");
@@ -828,23 +828,29 @@ GLFWwindow *InitGLFW(i32 width, i32 height, const i8 *title)
     return window;
 }
 
-void LoadMaterials(struct Game *game)
+void
+LoadMaterials(struct Game *game)
 {
-    const struct MaterialCreateInfo materialCreateInfos[] = {
-        {"shaders/vert.glsl", "shaders/frag.glsl", "Phong"},
-        {"shaders/vert.glsl", "shaders/deferred_decal.glsl", "Decal",
-            {"g_depth","g_albedo", "g_normal", "g_gbufferNormal"}, 4
-        },
-        {"shaders/vert.glsl", "shaders/gbuffer_frag.glsl", "GBuffer",
-            {"g_albedoTex", "g_normalTex", "g_roughnessTex"}, 3
-        },
-        {"shaders/deferred_vert.glsl", "shaders/deferred_frag.glsl", "Deferred",
-            {"g_position", "g_normal", "g_albedo"}, 3
-        }
-    };
+    const struct MaterialCreateInfo materialCreateInfos[]
+        = { { "shaders/vert.glsl", "shaders/frag.glsl", "Phong" },
+            { "shaders/vert.glsl",
+              "shaders/deferred_decal.glsl",
+              "Decal",
+              { "g_depth", "g_albedo", "g_normal", "g_gbufferNormal" },
+              4 },
+            { "shaders/vert.glsl",
+              "shaders/gbuffer_frag.glsl",
+              "GBuffer",
+              { "g_albedoTex", "g_normalTex", "g_roughnessTex" },
+              3 },
+            { "shaders/deferred_vert.glsl",
+              "shaders/deferred_frag.glsl",
+              "Deferred",
+              { "g_position", "g_normal", "g_albedo" },
+              3 } };
 
-    game->materials = malloc(
-        sizeof(struct Material*) * ARRAY_COUNT(materialCreateInfos));
+    game->materials
+        = malloc(sizeof(struct Material *) * ARRAY_COUNT(materialCreateInfos));
     game->numMaterials = ARRAY_COUNT(materialCreateInfos);
 
     for (u32 i = 0; i < game->numMaterials; ++i) {
@@ -852,7 +858,8 @@ void LoadMaterials(struct Game *game)
     }
 }
 
-void LoadMeshes(struct Game *game)
+void
+LoadMeshes(struct Game *game)
 {
     struct ModelProxy *room = ModelProxy_Create("assets/room.obj");
     {
@@ -862,22 +869,22 @@ void LoadMeshes(struct Game *game)
         }
     }
     struct ModelProxy *unitCube = ModelProxy_Create("assets/unit_cube.obj");
-    game->models = malloc(sizeof(struct ModelProxy*) * 2);
+    game->models = malloc(sizeof(struct ModelProxy *) * 2);
     game->numModels = 2;
     game->models[0] = room;
     game->models[1] = unitCube;
 }
 
-void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
-    GLenum severity, GLsizei length, const GLchar* message,
-    const void* userParam)
+void GLAPIENTRY
+MessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity,
+                GLsizei length, const GLchar *message, const void *userParam)
 {
-    if (source != GL_DEBUG_SOURCE_APPLICATION &&
-        severity >= GL_DEBUG_SEVERITY_LOW) {
+    if (source != GL_DEBUG_SOURCE_APPLICATION
+        && severity >= GL_DEBUG_SEVERITY_LOW) {
         fprintf(stderr,
-            "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
-            (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type,
-            severity, message);
+                "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+                (type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), type,
+                severity, message);
     }
 
     if (type == GL_DEBUG_TYPE_ERROR) {
@@ -885,7 +892,8 @@ void GLAPIENTRY MessageCallback(GLenum source, GLenum type, GLuint id,
     }
 }
 
-struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name)
+struct Material *
+Game_FindMaterialByName(struct Game *game, const i8 *name)
 {
     for (u32 i = 0; i < game->numMaterials; ++i) {
         if (strcmp(name, Material_GetName(game->materials[i])) == 0) {
@@ -896,67 +904,69 @@ struct Material *Game_FindMaterialByName(struct Game *game, const i8 *name)
     return NULL;
 }
 
-void LoadTextures(struct Game *game)
+void
+LoadTextures(struct Game *game)
 {
     const i8 *albedoTexturePaths[] = {
-        RES_HOME"/assets/Bricks/albedo.png",
-        RES_HOME"/assets/Default/albedo.png",
-        RES_HOME"/assets/smooth-temple-blocks/albedo.png",
-        RES_HOME"/assets/art-deco/albedo.png",
-        RES_HOME"/assets/RustyMetal/albedo.png",
+        RES_HOME "/assets/Bricks/albedo.png",
+        RES_HOME "/assets/Default/albedo.png",
+        RES_HOME "/assets/smooth-temple-blocks/albedo.png",
+        RES_HOME "/assets/art-deco/albedo.png",
+        RES_HOME "/assets/RustyMetal/albedo.png",
     };
 
     const i8 *normalTexturePaths[] = {
-        RES_HOME"/assets/Bricks/normal.png",
-        RES_HOME"/assets/Default/normal.png",
-        RES_HOME"/assets/smooth-temple-blocks/normal.png",
-        RES_HOME"/assets/art-deco/normal.png",
-        RES_HOME"/assets/RustyMetal/normal.png",
+        RES_HOME "/assets/Bricks/normal.png",
+        RES_HOME "/assets/Default/normal.png",
+        RES_HOME "/assets/smooth-temple-blocks/normal.png",
+        RES_HOME "/assets/art-deco/normal.png",
+        RES_HOME "/assets/RustyMetal/normal.png",
     };
 
     const i8 *roughnessTexturePaths[] = {
-        RES_HOME"/assets/Bricks/roughness.png",
-        RES_HOME"/assets/Default/roughness.png",
-        RES_HOME"/assets/smooth-temple-blocks/roughness.png",
-        RES_HOME"/assets/art-deco/roughness.png",
-        RES_HOME"/assets/RustyMetal/roughness.png",
+        RES_HOME "/assets/Bricks/roughness.png",
+        RES_HOME "/assets/Default/roughness.png",
+        RES_HOME "/assets/smooth-temple-blocks/roughness.png",
+        RES_HOME "/assets/art-deco/roughness.png",
+        RES_HOME "/assets/RustyMetal/roughness.png",
     };
 
     game->numTextures = ARRAY_COUNT(albedoTexturePaths);
 
-    game->albedoTextures = malloc(sizeof *game->albedoTextures *
-        game->numTextures);
-    ZERO_MEMORY_SZ(game->albedoTextures, sizeof *game->albedoTextures *
-        game->numTextures);
-    game->roughnessTextures = malloc(sizeof *game->roughnessTextures *
-        game->numTextures);
-    ZERO_MEMORY_SZ(game->roughnessTextures, sizeof *game->roughnessTextures *
-        game->numTextures);
-    game->normalTextures = malloc(sizeof *game->normalTextures *
-        game->numTextures);
-    ZERO_MEMORY_SZ(game->normalTextures, sizeof *game->normalTextures *
-        game->numTextures);
+    game->albedoTextures
+        = malloc(sizeof *game->albedoTextures * game->numTextures);
+    ZERO_MEMORY_SZ(game->albedoTextures,
+                   sizeof *game->albedoTextures * game->numTextures);
+    game->roughnessTextures
+        = malloc(sizeof *game->roughnessTextures * game->numTextures);
+    ZERO_MEMORY_SZ(game->roughnessTextures,
+                   sizeof *game->roughnessTextures * game->numTextures);
+    game->normalTextures
+        = malloc(sizeof *game->normalTextures * game->numTextures);
+    ZERO_MEMORY_SZ(game->normalTextures,
+                   sizeof *game->normalTextures * game->numTextures);
 
     stbi_set_flip_vertically_on_load(TRUE);
 
     for (u32 i = 0; i < game->numTextures; ++i) {
         Texture2D_Load(game->roughnessTextures + i, roughnessTexturePaths[i],
-            GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+                       GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
         Texture2D_Load(game->normalTextures + i, normalTexturePaths[i],
-            GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+                       GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
         Texture2D_Load(game->albedoTextures + i, albedoTexturePaths[i],
-            GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
+                       GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE);
     }
 }
 
-struct Game *Game_Create(void)
+struct Game *
+Game_Create(void)
 {
-    GLFWwindow* window = InitGLFW(640, 480, "Deferred Decals");
+    GLFWwindow *window = InitGLFW(640, 480, "Deferred Decals");
     struct Game *game = malloc(sizeof *game);
     ZERO_MEMORY(game);
     game->window = window;
     glfwGetFramebufferSize(window, &game->framebufferSize.width,
-            &game->framebufferSize.height);
+                           &game->framebufferSize.height);
     glfwSetWindowUserPointer(window, game);
     glfwSetFramebufferSizeCallback(window, OnFramebufferResize);
 
@@ -967,9 +977,10 @@ struct Game *Game_Create(void)
     return game;
 }
 
-i32 FindTextureIdxForMesh(const struct Game *game,
-    const struct MeshTextureMapping *mappings, u32 numMappings,
-    const i8 *meshName)
+i32
+FindTextureIdxForMesh(const struct Game *game,
+                      const struct MeshTextureMapping *mappings,
+                      u32 numMappings, const i8 *meshName)
 {
     for (u32 i = 0; i < numMappings; ++i) {
         for (u32 j = 0; j < mappings[i].numMeshNames; ++j) {
@@ -977,8 +988,8 @@ i32 FindTextureIdxForMesh(const struct Game *game,
                 continue;
             }
             for (u32 k = 0; k < game->numTextures; ++k) {
-                if (strstr(game->albedoTextures[k].name, 
-                    mappings[i].textureName)) {
+                if (strstr(game->albedoTextures[k].name,
+                           mappings[i].textureName)) {
                     return (i32)k;
                 }
             }
